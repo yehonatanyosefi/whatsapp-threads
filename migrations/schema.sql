@@ -71,10 +71,3 @@ create trigger update_thread_analytics_trigger
 
   -- Enable RLS on the threads table
 alter table threads enable row level security;
-
-DROP POLICY IF EXISTS "require_id_filter" ON threads;
-
-CREATE POLICY "require_id_filter" ON threads
-FOR SELECT
-TO authenticated
-USING (id = (select auth.uid()));

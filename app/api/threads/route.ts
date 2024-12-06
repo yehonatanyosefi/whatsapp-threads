@@ -1,6 +1,5 @@
-import { isProduction } from '@/lib/utils'
+import { createSupabaseAdminClient, isProduction } from '@/lib/utils'
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { createClient } from '@supabase/supabase-js'
 
 // Constants for configuration
 const MAX_RETRIES = 3
@@ -463,7 +462,7 @@ export async function POST(req: Request) {
 		// Only save to Supabase in production
 		let savedThread = null
 		if (isProduction()) {
-			const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SERVICE_ROLE_KEY!)
+			const supabase = createSupabaseAdminClient()
 			const { data, error: saveError } = await supabase
 				.from('threads')
 				.insert({

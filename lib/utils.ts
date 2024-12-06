@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 
@@ -25,4 +26,8 @@ export function getSiteURL(path?: string): string {
 
 export function isProduction(): boolean {
 	return process.env.NODE_ENV === 'production'
+}
+
+export function createSupabaseAdminClient() {
+	return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SERVICE_ROLE_KEY!)
 }

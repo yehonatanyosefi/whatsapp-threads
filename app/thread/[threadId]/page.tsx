@@ -1,7 +1,6 @@
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createSupabaseAdminClient } from '@/lib/utils'
 import { WhatsAppAnalysisPreview } from './WhatsAppAnalysisPreview'
 
 type PageProps = {
@@ -13,7 +12,7 @@ type PageProps = {
 export default async function Page({ params }: PageProps) {
 	const { threadId } = params
 
-	const supabase = createServerComponentClient({ cookies })
+	const supabase = createSupabaseAdminClient()
 
 	const { data: thread, error } = await supabase
 		.from('threads')
