@@ -70,15 +70,11 @@ export function FileUploader() {
 	const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const selectedFile = event.target.files?.[0]
 		if (selectedFile) {
-			const allowedTypes = [
-				'text/plain',
-				'application/pdf',
-				'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-			]
+			const allowedTypes = ['text/plain']
 
 			if (!allowedTypes.includes(selectedFile.type)) {
 				toast.error('Invalid file type', {
-					description: 'Please upload a TXT, PDF, or DOCX file.',
+					description: 'Please upload a TXT file exported from WhatsApp.',
 				})
 				return
 			}
@@ -345,14 +341,14 @@ export function FileUploader() {
 										<p className="mb-2 text-sm text-muted-foreground">
 											<span className="font-semibold">Click to upload</span> or drag and drop
 										</p>
-										<p className="text-xs text-muted-foreground">TXT, PDF, DOCX (MAX. 10MB)</p>
+										<p className="text-xs text-muted-foreground">WhatsApp chat export (.txt)</p>
 									</div>
 									<input
 										id="file-upload"
 										type="file"
 										className="hidden"
 										onChange={handleFileChange}
-										accept=".txt,.pdf,.docx"
+										accept=".txt"
 									/>
 									<div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 opacity-0 group-hover:opacity-100 transition-opacity" />
 								</label>

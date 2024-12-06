@@ -8,18 +8,20 @@ export default function Page() {
 			<Header />
 			<main className="flex-grow container mx-auto px-4 py-8">
 				<div className="max-w-4xl mx-auto">
-					<h2 className="text-3xl font-bold mb-2 text-center text-foreground">File Summarizer</h2>
+					<h2 className="text-3xl font-bold mb-2 text-center text-foreground">
+						WhatsApp Thread Generator
+					</h2>
 					<p className="text-muted-foreground mb-8 text-center">
-						Upload your document and get an AI-powered summary in seconds using Gemini.
+						Upload your WhatsApp chat export and generate organized discussion threads using Gemini.
 					</p>
 					<Card className="mb-8 bg-card shadow-lg">
 						<CardContent className="p-6">
 							<h3 className="text-xl font-semibold mb-2 text-foreground">
-								Gemini-Powered Summarization
+								Gemini-Powered Thread Analysis
 							</h3>
 							<p className="text-muted-foreground">
-								Experience the power of Gemini AI for quick and accurate document summarization. Simply
-								provide your Gemini API key to get started.
+								Transform your WhatsApp chat exports into organized discussion threads. Identify key
+								topics and follow conversation flows with AI assistance.
 							</p>
 						</CardContent>
 					</Card>
@@ -28,8 +30,8 @@ export default function Page() {
 			</main>
 			<footer className="bg-card mt-8">
 				<div className="container mx-auto px-4 py-6 text-center text-muted-foreground">
-					<p>&copy; 2023 FileLight. Created by YonatanLavy. All rights reserved.</p>
-					<p className="mt-2">Powered by Gemini API for intelligent document summarization.</p>
+					<p>&copy; 2024 WhatsApp Thread Generator. All rights reserved.</p>
+					<p className="mt-2">Powered by Gemini API for intelligent chat analysis.</p>
 				</div>
 			</footer>
 		</div>
