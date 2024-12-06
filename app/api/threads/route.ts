@@ -1,4 +1,4 @@
-import { GenerativeModel, GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 
 // Constants for configuration
 const MAX_RETRIES = 3
@@ -6,6 +6,8 @@ const RETRY_DELAY = 1000 // ms
 const MAX_CONTENT_LENGTH = 100000 // characters
 const MIN_CONTENT_LENGTH = 50
 const MAX_PARALLEL_THREADS = 10
+
+const MODEL_CHEAP = 'gemini-1.5-flash'
 
 interface ThreadResponse {
 	concept: string
@@ -63,27 +65,49 @@ function validateContent(content: string): string {
 // Get prompts for concept extraction
 function getConceptExtractionPrompts(content: string) {
 	const systemPrompt = `You are an expert conversation analyst specializing in identifying the most impactful and meaningful discussion topics.
-		Your task is to extract the core concepts that shaped this conversation.
+		Your primary responsibility is to extract key concepts with extremely high precision and consistency.
 
-		Guidelines for concept extraction:
-		- Focus on substantial topics that drove meaningful discussion
-		- Identify breakthrough ideas or key decisions
-		- Look for themes that multiple participants engaged with
-		- Include problems raised AND their proposed solutions
-		- Capture innovative ideas or unique perspectives shared
+		STRICT OUTPUT REQUIREMENTS:
+		- Must return ONLY a valid JSON array of strings
+		- Format: ["Concept 1", "Concept 2", "Concept 3"]
+		- Return [] if no significant concepts found
+		- No additional text, commentary, or explanations
+		- No nested objects or arrays
+		- Each concept must be 2-5 words maximum
+		- Extract 3-7 concepts maximum
+		- Concepts must be in Title Case
 
-		Requirements:
-		- Return ONLY a valid JSON array of strings
-		- Each concept should be clear and specific (2-5 words)
-		- Extract 3-7 most significant concepts
-		- Exclude small talk or tangential topics
-		- Format concepts as action-oriented phrases when possible
-		- If no clear concepts are found, return an empty array []
+		CONCEPT SELECTION CRITERIA:
+		- Must have substantial back-and-forth discussion (>3 messages)
+		- Must involve multiple participants
+		- Must have clear conclusions or decisions
+		- Must be business/project relevant
+		- Must exclude casual conversation or pleasantries
+		- Must exclude one-off mentions or tangents
 
-		Example format: ["API Authentication Design", "Database Schema Optimization", "User Onboarding Flow"]`
+		CONCEPT FORMATTING RULES:
+		1. Use action-oriented phrases when possible (e.g., "Database Migration Strategy")
+		2. Include the specific focus area (e.g., "Frontend Performance Optimization")
+		3. Be specific enough to distinguish from other topics
+		4. Be general enough to group related discussions
+		5. Use standard industry terminology
+		6. Maintain consistent naming conventions
+
+		INVALID CONCEPT EXAMPLES:
+		- "Discussion about the thing" (too vague)
+		- "John's idea about improving the database and also looking at the frontend performance issues" (too long)
+		- "hello" (not a concept)
+		- "misc" (not specific)
+
+		VALID CONCEPT EXAMPLES:
+		- "API Authentication Design"
+		- "Database Schema Optimization"
+		- "User Onboarding Flow"
+		- "CI/CD Pipeline Setup"
+		- "Mobile App Architecture"`
 
 	const userPrompt = `Extract the key concepts from this conversation that represent the most important topics discussed.
-		Return strictly as a JSON array like: ["concept1", "concept2", "concept3"]
+		You must return strictly as a JSON array like: ["concept1", "concept2", "concept3"]
 		If no significant topics are found, return an empty array: []
 
 		Analyze this chat history:\n\`\`\`${content}\`\`\``
@@ -93,67 +117,102 @@ function getConceptExtractionPrompts(content: string) {
 
 // Get prompts for thread generation
 function getThreadGenerationPrompts(content: string, concept: string) {
-	const systemPrompt = `You are an expert discussion synthesizer who creates engaging narrative summaries of complex conversations.
+	const systemPrompt = `You are an expert discussion synthesizer who creates clear, structured narrative summaries.
+		Your role is to transform complex conversations into coherent, engaging summaries while maintaining absolute accuracy.
 
-		Guidelines for creating thread summaries:
-		- Structure the summary as a flowing discussion with clear progression
-		- Highlight key participant contributions and different viewpoints
-		- Include specific examples, decisions, and action items discussed
-		- Show how initial ideas evolved into final conclusions
-		- Maintain participants' original insights while removing redundancy
-		- Use transitional phrases to show how the discussion developed
-		- Format in clear paragraphs with natural breaks between subtopics
-		- If no relevant discussion is found, indicate that clearly
+		SUMMARY STRUCTURE REQUIREMENTS:
+		1. Opening Context (2-3 sentences)
+		   - When/how the topic emerged
+		   - Initial context and importance
+		
+		2. Main Discussion Flow (3-5 paragraphs)
+		   - Chronological or logical progression
+		   - Clear transitions between subtopics
+		   - Explicit participant viewpoints
+		
+		3. Resolution & Next Steps (1-2 paragraphs)
+		   - Concrete decisions made
+		   - Action items assigned
+		   - Remaining open questions
 
-		Your summary should read like a well-crafted story of how the ideas developed, capturing both the content and the collaborative nature of the discussion.`
+		STRICT WRITING GUIDELINES:
+		- Use clear, professional language
+		- Maintain third-person perspective
+		- Include specific examples and quotes
+		- Use transitional phrases between sections
+		- Break into clear paragraphs (4-6 sentences each)
+		- Highlight opposing viewpoints with "However," "In contrast," etc.
+		- Use active voice
+		- Keep technical accuracy absolute
 
-	const userPrompt = `Create an engaging narrative summary of all discussions related to "${concept}".
+		MUST INCLUDE:
+		- Participant names/roles when relevant
+		- Specific metrics or data points discussed
+		- Direct quotes for key insights
+		- Timeline indicators
+		- Decision rationale
+		- Dissenting opinions
+		- Implementation challenges
+		- Risk considerations
 
-		Focus areas:
-		- How was this topic first introduced?
-		- What were the main viewpoints or approaches suggested?
-		- What challenges or concerns were raised?
-		- How did the group work through disagreements?
-		- What solutions or decisions were reached?
-		- What next steps or action items were identified?
+		MUST EXCLUDE:
+		- Personal commentary
+		- Speculation beyond discussion
+		- Off-topic tangents
+		- Redundant information
+		- Sensitive/confidential details
+		- Informal language/emoji
+		- Unresolved debates without context`
 
-		If this topic wasn't substantially discussed, indicate that briefly.
+	const userPrompt = `Create a comprehensive narrative summary of all discussions related to "${concept}".
 
-		Use the chat history below to create a cohesive story of this discussion thread:
-		\`\`\`${content}\`\`\``
+		Required Focus Areas:
+		1. Topic Introduction
+		   - Initial context and catalyst
+		   - Why this topic emerged
+		   - Who raised it first
+
+		2. Discussion Evolution
+		   - All major viewpoints presented
+		   - Supporting arguments and evidence
+		   - Counter-arguments and concerns
+		   - Technical constraints identified
+		   - Resource implications discussed
+
+		3. Problem Resolution
+		   - How conflicts were resolved
+		   - Compromise solutions reached
+		   - Alternative approaches considered
+		   - Decision-making process
+		   
+		4. Concrete Outcomes
+		   - Specific decisions made
+		   - Assigned action items
+		   - Ownership and deadlines
+		   - Success metrics defined
+		   - Follow-up requirements
+
+		If this topic wasn't substantially discussed, respond only with:
+		"This topic was mentioned but not substantively discussed in the conversation."
+
+		Analyze this chat history:\n\`\`\`${content}\`\`\``
 
 	return { systemPrompt, userPrompt }
 }
 
 // Extract concepts from content
-async function extractConcepts(
-	model: GenerativeModel,
-	content: string
-): Promise<ConceptExtractionResult> {
+async function extractConcepts(apiKey: string, content: string): Promise<ConceptExtractionResult> {
 	try {
 		const { systemPrompt, userPrompt } = getConceptExtractionPrompts(content)
+		const genAI = new GoogleGenerativeAI(apiKey)
+		const model = genAI.getGenerativeModel({ model: MODEL_CHEAP, systemInstruction: systemPrompt })
 
 		const conceptsResult = await withRetry(async () => {
-			try {
-				const result = await model.generateContent({
-					contents: [
-						{ role: 'system', parts: [{ text: systemPrompt }] },
-						{ role: 'user', parts: [{ text: userPrompt }] },
-					],
-				})
-
-				if (!result.response) {
-					throw new Error('Empty response from Gemini API')
-				}
-
-				return result
-			} catch (error) {
-				console.error('Gemini API error details:', {
-					error: error instanceof Error ? error.message : 'Unknown error',
-					timestamp: new Date().toISOString(),
-				})
-				throw error
+			const result = await model.generateContent(userPrompt)
+			if (!result.response) {
+				throw new Error('Empty response from Gemini API')
 			}
+			return result
 		})
 
 		const conceptsJson = conceptsResult.response.text()
@@ -175,31 +234,29 @@ async function extractConcepts(
 		console.error('Error extracting concepts:', {
 			error: error instanceof Error ? error.message : 'Unknown error',
 			type: error instanceof Error ? error.constructor.name : 'Unknown',
+			stack: error instanceof Error ? error.stack : undefined,
 			timestamp: new Date().toISOString(),
 		})
 		return {
 			concepts: [],
-			error: 'Failed to extract concepts from chat history. Please try again later.',
+			error: `Failed to extract concepts: ${error instanceof Error ? error.message : 'Unknown error'}`,
 		}
 	}
 }
 
 // Generate thread summary for a concept
 async function generateThreadSummary(
-	model: GenerativeModel,
+	apiKey: string,
 	content: string,
 	concept: string
 ): Promise<ThreadGenerationResult> {
 	try {
 		const { systemPrompt, userPrompt } = getThreadGenerationPrompts(content, concept)
+		const genAI = new GoogleGenerativeAI(apiKey)
+		const model = genAI.getGenerativeModel({ model: MODEL_CHEAP, systemInstruction: systemPrompt })
 
 		const threadResult = await withRetry(async () => {
-			return await model.generateContent({
-				contents: [
-					{ role: 'system', parts: [{ text: systemPrompt }] },
-					{ role: 'user', parts: [{ text: userPrompt }] },
-				],
-			})
+			return await model.generateContent(userPrompt)
 		})
 
 		return {
@@ -217,7 +274,7 @@ async function generateThreadSummary(
 
 // Process concepts in batches
 async function processConceptBatches(
-	model: GenerativeModel,
+	apiKey: string,
 	concepts: string[],
 	content: string
 ): Promise<ThreadResponse[]> {
@@ -225,7 +282,7 @@ async function processConceptBatches(
 
 	for (let i = 0; i < concepts.length; i += MAX_PARALLEL_THREADS) {
 		const batch = concepts.slice(i, i + MAX_PARALLEL_THREADS)
-		const batchPromises = batch.map((concept) => generateThreadSummary(model, content, concept))
+		const batchPromises = batch.map((concept) => generateThreadSummary(apiKey, content, concept))
 		const batchResults = await Promise.all(batchPromises)
 		threads.push(...batchResults)
 	}
@@ -255,11 +312,8 @@ export async function POST(req: Request) {
 			)
 		}
 
-		const genAI = new GoogleGenerativeAI(apiKey)
-		const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
-
 		// Extract concepts
-		const { concepts, error: conceptsError } = await extractConcepts(model, sanitizedContent)
+		const { concepts, error: conceptsError } = await extractConcepts(apiKey, sanitizedContent)
 
 		if (conceptsError) {
 			return new Response(JSON.stringify({ error: conceptsError }), { status: 500 })
@@ -277,7 +331,7 @@ export async function POST(req: Request) {
 		}
 
 		// Generate thread summaries
-		const threads = await processConceptBatches(model, concepts, sanitizedContent)
+		const threads = await processConceptBatches(apiKey, concepts, sanitizedContent)
 
 		const response = {
 			concepts,
