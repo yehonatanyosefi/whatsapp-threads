@@ -1,6 +1,5 @@
 import { FileText } from 'lucide-react'
 import { BuyMeACoffee } from './BuyMeACoffee'
-import { ThemeToggle } from './ThemeToggle'
 
 export function Header() {
 	return (
@@ -11,12 +10,12 @@ export function Header() {
 						<FileText className="text-primary-foreground w-6 h-6" />
 					</div>
 					<div>
-						<h1 className="text-2xl font-bold text-foreground">FileLight</h1>
-						<p className="text-sm text-muted-foreground">Illuminate Your Documents</p>
+						<h1 className="text-2xl font-bold text-foreground">WhatsApp Thread Generator</h1>
+						<p className="text-sm text-muted-foreground">Organize Your Chat Discussions</p>
 					</div>
 				</div>
 				<nav className="flex items-center space-x-4">
-					<ThemeToggle />
+					{/* <ThemeToggle /> */}
 					<BuyMeACoffee />
 				</nav>
 			</div>
