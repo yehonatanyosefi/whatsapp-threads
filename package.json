@@ -28,6 +28,7 @@
 		"pdfjs-dist": "^4.9.155",
 		"react": "^18",
 		"react-dom": "^18",
+		"sonner": "^1.7.0",
 		"tailwind-merge": "^2.5.5",
 		"tailwindcss-animate": "^1.0.7"
 	},

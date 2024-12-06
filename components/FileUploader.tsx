@@ -5,22 +5,22 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
-import { AlertTriangle, Check, Edit, FileText, Key, Loader2, RefreshCw, Upload, X } from 'lucide-react'
+import { AlertTriangle, Check, Edit, FileText, Key, Loader2, RefreshCw } from 'lucide-react'
+import { type TextItem } from 'pdfjs-dist/types/src/display/api'
 import { useEffect, useState } from 'react'
+import { toast } from 'sonner'
 
 export function FileUploader() {
-	const [file, setFile] = useState<File | null>(null)
 	const [fileContent, setFileContent] = useState<string>('')
 	const [loadingStep, setLoadingStep] = useState<number>(0)
 	const [progress, setProgress] = useState<number>(0)
 	const [apiKey, setApiKey] = useState<string>('')
 	const [summary, setSummary] = useState<string>('')
 	const [isKeyVerified, setIsKeyVerified] = useState<boolean>(false)
-	const { toast } = useToast()
+	const [isTestingKey, setIsTestingKey] = useState<boolean>(false)
 
 	useEffect(() => {
 		const storedApiKey = localStorage.getItem('geminiApiKey')
@@ -33,16 +33,26 @@ export function FileUploader() {
 	const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
 		const selectedFile = event.target.files?.[0]
 		if (selectedFile) {
-			if (selectedFile.size > 10 * 1024 * 1024) {
-				toast({
-					title: 'File too large',
-					description: 'Please upload a file smaller than 10MB.',
-					variant: 'destructive',
+			const allowedTypes = [
+				'text/plain',
+				'application/pdf',
+				'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+			]
+
+			if (!allowedTypes.includes(selectedFile.type)) {
+				toast.error('Invalid file type', {
+					description: 'Please upload a TXT, PDF, or DOCX file.',
 				})
 				return
 			}
 
-			setFile(selectedFile)
+			if (selectedFile.size > 10 * 1024 * 1024) {
+				toast.error('File too large', {
+					description: 'Please upload a file smaller than 10MB.',
+				})
+				return
+			}
+
 			setProgress(0)
 			setLoadingStep(0)
 			setSummary('')
@@ -50,12 +60,13 @@ export function FileUploader() {
 			try {
 				const content = await readFileContent(selectedFile)
 				setFileContent(content)
+				if (isKeyVerified) {
+					handleUpload(content)
+				}
 			} catch (error) {
-				console.error(error)
-				toast({
-					title: 'Error reading file',
+				console.error('File reading error:', error)
+				toast.error('Error reading file', {
 					description: 'There was an error reading the file. Please try again.',
-					variant: 'destructive',
 				})
 			}
 		}
@@ -77,45 +88,49 @@ export function FileUploader() {
 			reader.onerror = (error) => reject(error)
 
 			if (file.type === 'application/pdf') {
-				import('pdfjs-dist')
-					.then((pdfjsLib) => {
+				const handlePdf = async () => {
+					try {
+						const pdfjsLib = await import('pdfjs-dist')
 						pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
-						const loadingTask = pdfjsLib.getDocument({ url: URL.createObjectURL(file) })
-						loadingTask.promise
-							.then((pdf) => {
-								let fullText = ''
-								const pagePromises = []
-								for (let i = 1; i <= pdf.numPages; i++) {
-									pagePromises.push(
-										pdf.getPage(i).then((page) =>
-											page.getTextContent().then((content) => {
-												return content.items.map((item) => ('str' in item ? item.str : '')).join(' ')
-											})
-										)
-									)
-								}
-								Promise.all(pagePromises).then((pageTexts) => {
-									fullText = pageTexts.join('\n\n')
-									resolve(fullText)
-								})
-							})
-							.catch(reject)
-					})
-					.catch(reject)
+
+						const arrayBuffer = await file.arrayBuffer()
+						const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+						const numPages = pdf.numPages
+						let fullText = ''
+
+						for (let i = 1; i <= numPages; i++) {
+							const page = await pdf.getPage(i)
+							const content = await page.getTextContent()
+							const pageText = content.items
+								.map((item) => ('str' in item ? (item as TextItem).str : ''))
+								.join(' ')
+							fullText += pageText + '\n\n'
+						}
+
+						resolve(fullText.trim())
+					} catch (error) {
+						console.error('PDF parsing error:', error)
+						reject(error)
+					}
+				}
+
+				handlePdf()
 			} else if (
 				file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 			) {
-				import('mammoth')
-					.then(async (mammoth) => {
-						const buffer = await file.arrayBuffer()
-						mammoth
-							.extractRawText({ arrayBuffer: buffer })
-							.then((result) => {
-								resolve(result.value)
-							})
-							.catch(reject)
-					})
-					.catch(reject)
+				const handleDocx = async () => {
+					try {
+						const mammoth = await import('mammoth')
+						const arrayBuffer = await file.arrayBuffer()
+						const result = await mammoth.extractRawText({ arrayBuffer })
+						resolve(result.value)
+					} catch (error) {
+						console.error('DOCX parsing error:', error)
+						reject(error)
+					}
+				}
+
+				handleDocx()
 			} else {
 				reader.readAsText(file)
 			}
@@ -129,6 +144,7 @@ export function FileUploader() {
 	}
 
 	const testApiKey = async (keyToTest: string = apiKey) => {
+		setIsTestingKey(true)
 		try {
 			const response = await fetch('/api/test-api-key', {
 				method: 'POST',
@@ -139,10 +155,8 @@ export function FileUploader() {
 			})
 
 			if (response.ok) {
-				toast({
-					title: 'API Key Valid',
+				toast.success('API Key Valid', {
 					description: 'Your Gemini API key is valid and has been saved.',
-					variant: 'default',
 				})
 				localStorage.setItem('geminiApiKey', keyToTest)
 				setIsKeyVerified(true)
@@ -151,12 +165,12 @@ export function FileUploader() {
 			}
 		} catch (error) {
 			console.error(error)
-			toast({
-				title: 'Invalid API Key',
+			toast.error('Invalid API Key', {
 				description: 'Please check your Gemini API key and try again.',
-				variant: 'destructive',
 			})
 			setIsKeyVerified(false)
+		} finally {
+			setIsTestingKey(false)
 		}
 	}
 
@@ -164,8 +178,8 @@ export function FileUploader() {
 		setIsKeyVerified(false)
 	}
 
-	const handleUpload = async () => {
-		if (!file || !apiKey) return
+	const handleUpload = async (contentToUpload: string = fileContent) => {
+		if (!apiKey) return
 
 		setLoadingStep(1)
 		let progress = 0
@@ -181,7 +195,7 @@ export function FileUploader() {
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({ content: fileContent, apiKey }),
+				body: JSON.stringify({ content: contentToUpload, apiKey }),
 			})
 
 			if (!response.ok) {
@@ -193,23 +207,18 @@ export function FileUploader() {
 			setLoadingStep(3)
 		} catch (error) {
 			console.error(error)
-			toast({
-				title: 'Error summarizing file',
+			toast.error('Error summarizing file', {
 				description: 'There was an error summarizing the file. Please check your API key and try again.',
-				variant: 'destructive',
 			})
 		} finally {
 			clearInterval(interval)
 			setProgress(100)
 		}
 	}
+	const successColor = 'text-green-500 dark:text-green-400'
 
-	const removeFile = () => {
-		setFile(null)
-		setFileContent('')
-		setLoadingStep(0)
-		setProgress(0)
-		setSummary('')
+	const handleRegenerateClick = () => {
+		handleUpload(fileContent)
 	}
 
 	return (
@@ -226,14 +235,16 @@ export function FileUploader() {
 									<motion.div
 										initial={{ opacity: 0, y: -10 }}
 										animate={{ opacity: 1, y: 0 }}
-										className="flex items-center justify-between bg-green-100 dark:bg-green-900 p-3 rounded-md">
+										className="flex items-center justify-between bg-green-50 dark:bg-green-900 p-3 rounded-md">
 										<div className="flex items-center space-x-2">
-											<Check className="h-5 w-5 text-green-500" />
-											<span className="text-sm text-green-700 dark:text-green-300">
-												API Key verified
-											</span>
+											<Check className={cn('h-5 w-5', successColor)} />
+											<span className={cn('text-sm', successColor)}>API Key verified</span>
 										</div>
-										<Button onClick={handleEditApiKey} variant="outline" size="sm">
+										<Button
+											onClick={handleEditApiKey}
+											variant="outline"
+											className={cn(successColor)}
+											size="sm">
 											<Edit className="h-4 w-4 mr-2" />
 											Edit
 										</Button>
@@ -258,8 +269,16 @@ export function FileUploader() {
 						{!isKeyVerified && (
 							<Button
 								onClick={() => testApiKey()}
+								disabled={isTestingKey}
 								className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-								Verify API Key
+								{isTestingKey ? (
+									<>
+										<Loader2 className="w-4 h-4 mr-2 animate-spin" />
+										Verifying...
+									</>
+								) : (
+									'Verify API Key'
+								)}
 							</Button>
 						)}
 					</div>
@@ -300,46 +319,6 @@ export function FileUploader() {
 			</AnimatePresence>
 
 			<AnimatePresence>
-				{file && isKeyVerified && (
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -20 }}>
-						<Card className="bg-card shadow-lg">
-							<CardContent className="p-6">
-								<div className="flex items-center justify-between mb-4">
-									<div className="flex items-center space-x-2">
-										<FileText className="w-6 h-6 text-primary" />
-										<span className="text-sm font-medium text-foreground">{file.name}</span>
-									</div>
-									<Button variant="ghost" size="icon" onClick={removeFile}>
-										<X className="w-4 h-4" />
-									</Button>
-								</div>
-								<div className="text-xs text-muted-foreground mb-2">
-									Size: {(file.size / 1024).toFixed(2)} KB
-								</div>
-								<Progress value={progress} className="w-full h-2" />
-								<div className="mt-4">
-									<Button
-										onClick={handleUpload}
-										disabled={loadingStep > 0}
-										className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-										{loadingStep > 0 ? (
-											<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-										) : (
-											<Upload className="w-4 h-4 mr-2" />
-										)}
-										Upload and Summarize
-									</Button>
-								</div>
-							</CardContent>
-						</Card>
-					</motion.div>
-				)}
-			</AnimatePresence>
-
-			<AnimatePresence>
 				{loadingStep > 0 && (
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
@@ -349,6 +328,12 @@ export function FileUploader() {
 							<CardContent className="p-6">
 								<h2 className="text-xl font-semibold mb-4 text-foreground">Processing</h2>
 								<div className="space-y-4">
+									<div className="w-full bg-muted rounded-full h-2.5">
+										<div
+											className="bg-primary h-2.5 rounded-full transition-all duration-300"
+											style={{ width: `${progress}%` }}
+										/>
+									</div>
 									<Step number={1} text="Uploading file" completed={loadingStep > 1} />
 									<Step number={2} text="Analyzing content" completed={loadingStep > 2} />
 									<Step number={3} text="Generating summary" completed={loadingStep > 3} />
@@ -369,7 +354,7 @@ export function FileUploader() {
 							<CardContent className="p-6">
 								<div className="flex justify-between items-center mb-4">
 									<h2 className="text-xl font-semibold text-foreground">Summary</h2>
-									<Button variant="outline" size="sm" onClick={handleUpload}>
+									<Button variant="outline" size="sm" onClick={handleRegenerateClick}>
 										<RefreshCw className="w-4 h-4 mr-2" />
 										Regenerate
 									</Button>
