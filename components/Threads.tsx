@@ -62,7 +62,7 @@ export function Threads({ threads }: ThreadsProps) {
 							<p className="text-sm text-muted-foreground">{thread.discussion.note}</p>
 						) : (
 							<>
-								<div className="flex justify-between items-center mb-2">
+								<div className="flex justify-between items-center mb-2 sticky top-0 bg-background z-10 py-2">
 									<h4 className="text-md font-medium">{thread.discussion.title}</h4>
 									<Button
 										variant="ghost"
