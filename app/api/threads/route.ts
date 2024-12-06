@@ -11,17 +11,40 @@ const MODEL_CHEAP = 'gemini-1.5-flash'
 
 interface ThreadResponse {
 	concept: string
-	discussion: string
+	discussion: {
+		title: string
+		threads: {
+			timestamp: string
+			initiator: {
+				who: string
+				question: string
+				context: string
+			}
+			responses: {
+				who: string
+				contribution: string
+				key_points: string[]
+				attachments?: string
+			}[]
+			resolution: {
+				outcome: string
+				next_steps: string
+				pending?: string
+			}
+		}[]
+		related_topics: string[]
+		action_items: {
+			task: string
+			owner: string
+			deadline?: string
+		}[]
+		note?: string // For brief mentions
+	}
 }
 
 interface ConceptExtractionResult {
 	concepts: string[]
 	error?: string
-}
-
-interface ThreadGenerationResult {
-	concept: string
-	discussion: string
 }
 
 // Utility function for delay between retries
@@ -59,7 +82,14 @@ function validateContent(content: string): string {
 		content = content.slice(0, MAX_CONTENT_LENGTH) + '\n[Content truncated due to length...]'
 	}
 
-	return content.replace(/```/g, "'''") // Prevent markdown confusion
+	// Additional WhatsApp-specific sanitization
+	return content
+		.replace(/```/g, "'''") // Prevent markdown confusion
+		.replace(/\[\d{1,2}\/\d{1,2}\/\d{2,4},\s\d{1,2}:\d{2}:\d{2}\s[AP]M\]/g, '') // Remove WhatsApp timestamps
+		.replace(/\u200E/g, '') // Remove LTR mark
+		.replace(/\u200F/g, '') // Remove RTL mark
+		.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '') // Remove emojis
+		.trim()
 }
 
 // Get prompts for concept extraction
@@ -74,8 +104,37 @@ function getConceptExtractionPrompts(content: string) {
 		- No additional text, commentary, or explanations
 		- No nested objects or arrays
 		- Each concept must be 2-5 words maximum
-		- Extract 3-7 concepts maximum
+		- Extract 3-15 concepts maximum
 		- Concepts must be in Title Case
+
+		CONCEPT TYPES TO IDENTIFY:
+		1. Technical Discussions
+		   - Architecture decisions
+		   - Implementation details
+		   - Technology choices
+		   - Performance issues
+		   - Security concerns
+
+		2. Project Management
+		   - Timeline discussions
+		   - Resource allocation
+		   - Task assignments
+		   - Project blockers
+		   - Dependencies
+
+		3. Decision Making
+		   - Problem solving sessions
+		   - Solution evaluations
+		   - Trade-off discussions
+		   - Risk assessments
+		   - Consensus building
+
+		4. Planning & Strategy
+		   - Future roadmap
+		   - Feature planning
+		   - Process improvements
+		   - Team organization
+		   - Strategic initiatives
 
 		CONCEPT SELECTION CRITERIA:
 		- Must have substantial back-and-forth discussion (>3 messages)
@@ -84,6 +143,10 @@ function getConceptExtractionPrompts(content: string) {
 		- Must be business/project relevant
 		- Must exclude casual conversation or pleasantries
 		- Must exclude one-off mentions or tangents
+		- Must capture both resolved and unresolved important topics
+		- Must include time-sensitive or urgent matters
+		- Must include technical deep-dives
+		- Must include planning discussions
 
 		CONCEPT FORMATTING RULES:
 		1. Use action-oriented phrases when possible (e.g., "Database Migration Strategy")
@@ -92,110 +155,137 @@ function getConceptExtractionPrompts(content: string) {
 		4. Be general enough to group related discussions
 		5. Use standard industry terminology
 		6. Maintain consistent naming conventions
+		7. Include status indicators when relevant (e.g., "Pending API Integration")
 
 		INVALID CONCEPT EXAMPLES:
 		- "Discussion about the thing" (too vague)
 		- "John's idea about improving the database and also looking at the frontend performance issues" (too long)
 		- "hello" (not a concept)
 		- "misc" (not specific)
+		- "talked about project" (not specific enough)
+		- "random chat" (not a meaningful concept)
 
 		VALID CONCEPT EXAMPLES:
 		- "API Authentication Design"
 		- "Database Schema Optimization"
 		- "User Onboarding Flow"
 		- "CI/CD Pipeline Setup"
-		- "Mobile App Architecture"`
+		- "Mobile App Architecture"
+		- "Sprint Planning Discussion"
+		- "Security Vulnerability Fix"
+		- "Performance Bottleneck Resolution"
+		- "Team Workflow Optimization"
+		- "Release Schedule Planning"`
 
 	const userPrompt = `Extract the key concepts from this conversation that represent the most important topics discussed.
-		You must return strictly as a JSON array like: ["concept1", "concept2", "concept3"]
-		If no significant topics are found, return an empty array: []
+			You must return strictly as a JSON array like: ["concept1", "concept2", "concept3"]
+			If no significant topics are found, return an empty array: []
 
-		Analyze this chat history:\n\`\`\`${content}\`\`\``
+			Analyze this chat history:\n\`\`\`${content}\`\`\``
 
 	return { systemPrompt, userPrompt }
 }
 
 // Get prompts for thread generation
 function getThreadGenerationPrompts(content: string, concept: string) {
-	const systemPrompt = `You are an expert discussion synthesizer who creates clear, structured narrative summaries.
-		Your role is to transform complex conversations into coherent, engaging summaries while maintaining absolute accuracy.
+	const systemPrompt = `You are an expert conversation analyzer specializing in WhatsApp chat analysis.
+        Your role is to transform informal WhatsApp discussions into structured, comprehensive thread summaries.
 
-		SUMMARY STRUCTURE REQUIREMENTS:
-		1. Opening Context (2-3 sentences)
-		   - When/how the topic emerged
-		   - Initial context and importance
-		
-		2. Main Discussion Flow (3-5 paragraphs)
-		   - Chronological or logical progression
-		   - Clear transitions between subtopics
-		   - Explicit participant viewpoints
-		
-		3. Resolution & Next Steps (1-2 paragraphs)
-		   - Concrete decisions made
-		   - Action items assigned
-		   - Remaining open questions
+        OUTPUT STRUCTURE:
+        {
+            "title": "Engaging title that captures the main topic",
+            "threads": [
+                {
+                    "timestamp": "Approximate timing or sequence",
+                    "initiator": {
+                        "who": "Person who started this thread",
+                        "question": "The initial question/problem/suggestion",
+                        "context": "Why this was brought up"
+                    },
+                    "responses": [
+                        {
+                            "who": "Responder's name",
+                            "contribution": "Their response or solution",
+                            "key_points": ["Main points they made"],
+                            "attachments": "Any files/links shared (if mentioned)"
+                        }
+                    ],
+                    "resolution": {
+                        "outcome": "What was decided or concluded",
+                        "next_steps": "Actions to be taken",
+                        "pending": "Any unresolved items"
+                    }
+                }
+            ],
+            "related_topics": ["Other concepts discussed that connect to this thread"],
+            "action_items": [
+                {
+                    "task": "Specific action to be taken",
+                    "owner": "Person responsible",
+                    "deadline": "Timeline if mentioned"
+                }
+            ]
+        }
 
-		STRICT WRITING GUIDELINES:
-		- Use clear, professional language
-		- Maintain third-person perspective
-		- Include specific examples and quotes
-		- Use transitional phrases between sections
-		- Break into clear paragraphs (4-6 sentences each)
-		- Highlight opposing viewpoints with "However," "In contrast," etc.
-		- Use active voice
-		- Keep technical accuracy absolute
+        ANALYSIS REQUIREMENTS:
+        - Capture every distinct question or problem raised
+        - Track all responses and solutions proposed
+        - Note when topics branch into sub-discussions
+        - Identify when previous topics are revisited
+        - Maintain chronological order while grouping related messages
+        - Track decisions and changes in direction
+        - Note any shared resources (files, links, images mentioned)
 
-		MUST INCLUDE:
-		- Participant names/roles when relevant
-		- Specific metrics or data points discussed
-		- Direct quotes for key insights
-		- Timeline indicators
-		- Decision rationale
-		- Dissenting opinions
-		- Implementation challenges
-		- Risk considerations
+        CONVERSATION PATTERNS TO TRACK:
+        - Question-Answer sequences
+        - Problem-Solution discussions
+        - Decision-making processes
+        - Task assignments
+        - Status updates
+        - Technical debates
+        - Planning discussions
+        - Resource sharing
+        - Agreement/disagreement points
 
-		MUST EXCLUDE:
-		- Personal commentary
-		- Speculation beyond discussion
-		- Off-topic tangents
-		- Redundant information
-		- Sensitive/confidential details
-		- Informal language/emoji
-		- Unresolved debates without context`
+        CONTEXT PRESERVATION:
+        - Capture time gaps between messages if significant
+        - Note when conversations resume after breaks
+        - Track topic evolution over time
+        - Maintain references to previous discussions
+        - Note when external meetings/calls are mentioned
+        - Track dependencies between different discussion threads
 
-	const userPrompt = `Create a comprehensive narrative summary of all discussions related to "${concept}".
+        MUST INCLUDE:
+        - All significant questions raised
+        - Every distinct solution proposed
+        - All decisions made (even if later changed)
+        - Resource sharing and references
+        - Task assignments and volunteers
+        - Timeline commitments
+        - Technical specifications
+        - Concerns and roadblocks
+        - External dependencies
+        - Follow-up items
 
-		Required Focus Areas:
-		1. Topic Introduction
-		   - Initial context and catalyst
-		   - Why this topic emerged
-		   - Who raised it first
+        MUST EXCLUDE:
+        - Social chitchat unrelated to topics
+        - Repeated information
+        - Personal comments unrelated to work
+        - Emojis and reactions unless they indicate decisions
+        - Side conversations without substance
 
-		2. Discussion Evolution
-		   - All major viewpoints presented
-		   - Supporting arguments and evidence
-		   - Counter-arguments and concerns
-		   - Technical constraints identified
-		   - Resource implications discussed
+        If a topic wasn't substantially discussed, respond with:
+        {
+            "title": "Brief mention: [topic]",
+            "threads": [],
+            "note": "This topic was only briefly mentioned without substantial discussion."
+        }`
 
-		3. Problem Resolution
-		   - How conflicts were resolved
-		   - Compromise solutions reached
-		   - Alternative approaches considered
-		   - Decision-making process
-		   
-		4. Concrete Outcomes
-		   - Specific decisions made
-		   - Assigned action items
-		   - Ownership and deadlines
-		   - Success metrics defined
-		   - Follow-up requirements
-
-		If this topic wasn't substantially discussed, respond only with:
-		"This topic was mentioned but not substantively discussed in the conversation."
-
-		Analyze this chat history:\n\`\`\`${content}\`\`\``
+	const userPrompt = `Create a comprehensive thread summary of all discussions related to "${concept}".
+        Focus on capturing the complete conversation flow, including all questions, answers, and decisions.
+        Ensure no significant points are missed, even if they seem minor.
+        
+        Analyze this WhatsApp chat history:\n\`\`\`${content}\`\`\``
 
 	return { systemPrompt, userPrompt }
 }
@@ -254,25 +344,48 @@ async function generateThreadSummary(
 	apiKey: string,
 	content: string,
 	concept: string
-): Promise<ThreadGenerationResult> {
+): Promise<ThreadResponse> {
 	try {
 		const { systemPrompt, userPrompt } = getThreadGenerationPrompts(content, concept)
 		const genAI = new GoogleGenerativeAI(apiKey)
 		const model = genAI.getGenerativeModel({ model: MODEL_CHEAP, systemInstruction: systemPrompt })
 
 		const threadResult = await withRetry(async () => {
-			return await model.generateContent(userPrompt)
+			const result = await model.generateContent(userPrompt)
+			if (!result.response) {
+				throw new Error('Empty response from Gemini API')
+			}
+
+			// Validate JSON structure
+			const response = JSON.parse(result.response.text())
+			if (!response.title || !response.threads) {
+				throw new Error('Invalid response structure')
+			}
+
+			return result
 		})
 
 		return {
 			concept,
-			discussion: threadResult.response.text(),
+			discussion: JSON.parse(threadResult.response.text()),
 		}
 	} catch (error) {
-		console.error(`Error processing thread for concept "${concept}":`, error)
+		console.error('Thread generation error:', {
+			concept,
+			error: error instanceof Error ? error.message : 'Unknown error',
+			timestamp: new Date().toISOString(),
+			type: error instanceof Error ? error.constructor.name : 'Unknown',
+		})
+
 		return {
 			concept,
-			discussion: 'Failed to generate discussion summary for this topic.',
+			discussion: {
+				title: `Error Processing: ${concept}`,
+				threads: [],
+				related_topics: [],
+				action_items: [],
+				note: 'Failed to generate discussion summary for this topic.',
+			},
 		}
 	}
 }
