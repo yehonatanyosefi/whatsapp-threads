@@ -18,7 +18,7 @@ export default async function Page({ params }: PageProps) {
 	const { data: thread, error } = await supabase
 		.from('threads')
 		.select('id, concepts, thread_data')
-		.eq('id', threadId)
+		.or(`id.eq.${threadId},share_id.eq.${threadId}`)
 		.single()
 
 	if (error) {

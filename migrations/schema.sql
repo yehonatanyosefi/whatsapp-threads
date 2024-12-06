@@ -71,8 +71,10 @@ create trigger update_thread_analytics_trigger
 
   -- Enable RLS on the threads table
 alter table threads enable row level security;
-
--- Policy to allow everyone to select (view) data
+drop policy if exists select_policy on threads;
 create policy select_policy on threads
   for select
-  using (true);
+  using (
+    id::text = coalesce(current_setting('request.jwt.claims.thread_id', true), '')
+    or share_id = coalesce(current_setting('request.jwt.claims.share_id', true), '')
+  );
