@@ -215,7 +215,12 @@ async function extractConcepts(apiKey: string, content: string): Promise<Concept
 			return result
 		})
 
-		const conceptsJson = conceptsResult.response.text()
+		// Clean up the response by removing markdown code blocks and extra whitespace
+		const conceptsJson = conceptsResult.response
+			.text()
+			.replace(/```json\n?/g, '')
+			.replace(/```\n?/g, '')
+			.trim()
 
 		try {
 			const concepts = JSON.parse(conceptsJson)
