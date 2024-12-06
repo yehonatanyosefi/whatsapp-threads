@@ -2,10 +2,17 @@ import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import { createSupabaseAdminClient } from '@/lib/utils'
 import { WhatsAppAnalysisPreview } from './WhatsAppAnalysisPreview'
+import type { Metadata } from 'next'
 
 type PageProps = {
 	params: {
 		threadId: string
+	}
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+	return {
+		title: `Thread #${params.threadId}`,
 	}
 }
 
