@@ -1,9 +1,8 @@
-import { Concepts } from '@/components/Concepts'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
-import { Threads } from '@/components/Threads'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
+import { WhatsAppAnalysisPreview } from './WhatsAppAnalysisPreview'
 
 type PageProps = {
 	params: {
@@ -16,8 +15,11 @@ export default async function Page({ params }: PageProps) {
 
 	const supabase = createServerComponentClient({ cookies })
 
-	const { data: thread, error } = await supabase.from('threads').select('*').eq('id', threadId).single()
-	console.log(`thread:`, thread)
+	const { data: thread, error } = await supabase
+		.from('threads')
+		.select('id, concepts, thread_data')
+		.eq('id', threadId)
+		.single()
 
 	if (error) {
 		console.error('Error fetching thread:', error)
@@ -31,11 +33,11 @@ export default async function Page({ params }: PageProps) {
 	return (
 		<div className="min-h-screen flex flex-col bg-background">
 			<Header />
-			<div className="p-4 max-w-4xl mx-auto mt-10 flex flex-col gap-4">
-				<h1 className="text-2xl font-bold mb-4">Thread #{thread.id}</h1>
-				<Concepts concepts={thread.concepts} />
-				<Threads threads={thread.thread_data.threads} />
-			</div>
+			<WhatsAppAnalysisPreview
+				id={thread.id}
+				concepts={thread.concepts}
+				threads={thread.thread_data.threads}
+			/>
 			<Footer />
 		</div>
 	)
