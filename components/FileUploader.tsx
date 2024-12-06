@@ -12,7 +12,39 @@ import { AlertTriangle, Check, Edit, FileText, Key, Loader2, RefreshCw } from 'l
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
-type UploadStatus = 'idle' | 'uploading' | 'summarizing' | 'done'
+type UploadStatus = 'idle' | 'uploading' | 'analyzing' | 'done'
+
+interface ThreadResponse {
+	concept: string
+	discussion: string
+}
+
+interface AnalysisResponse {
+	concepts: string[]
+	threads: ThreadResponse[]
+	message: string
+}
+
+interface StepProps {
+	number: number
+	text: string
+	completed: boolean
+}
+
+function Step({ number, text, completed }: StepProps) {
+	return (
+		<div className="flex items-center">
+			<div
+				className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
+					completed ? 'bg-green-500' : 'bg-primary'
+				}`}>
+				<span className="text-white text-sm">{completed ? '✓' : number}</span>
+			</div>
+			<span className="text-sm text-foreground">{text}</span>
+			{!completed && <Loader2 className="animate-spin ml-2 h-4 w-4" />}
+		</div>
+	)
+}
 
 const isStepCompleted = (currentStatus: UploadStatus, requiredStatuses: UploadStatus[]): boolean => {
 	return requiredStatuses.includes(currentStatus)
@@ -22,7 +54,7 @@ export function FileUploader() {
 	const [fileContent, setFileContent] = useState<string>('')
 	const [progress, setProgress] = useState<number>(0)
 	const [apiKey, setApiKey] = useState<string>('')
-	const [summary, setSummary] = useState<string>('')
+	const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(null)
 	const [isKeyVerified, setIsKeyVerified] = useState<boolean>(false)
 	const [isTestingKey, setIsTestingKey] = useState<boolean>(false)
 	const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
@@ -59,14 +91,13 @@ export function FileUploader() {
 			}
 
 			setProgress(0)
-			setSummary('')
 			setUploadStatus('uploading')
 
 			try {
 				const content = await readFileContent(selectedFile)
 				setFileContent(content)
 				if (isKeyVerified) {
-					handleUpload(content)
+					handleAnalyze(content)
 				}
 			} catch (error) {
 				console.error('File reading error:', error)
@@ -182,10 +213,10 @@ export function FileUploader() {
 		setIsKeyVerified(false)
 	}
 
-	const handleUpload = async (contentToUpload: string = fileContent) => {
+	const handleAnalyze = async (contentToAnalyze: string = fileContent) => {
 		if (!apiKey) return
 
-		setUploadStatus('summarizing')
+		setUploadStatus('analyzing')
 		let progress = 0
 		const interval = setInterval(() => {
 			progress += 10
@@ -194,42 +225,43 @@ export function FileUploader() {
 		}, 500)
 
 		try {
-			const response = await fetch('/api/summarize', {
+			const response = await fetch('/api/threads', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({ content: contentToUpload, apiKey }),
+				body: JSON.stringify({ content: contentToAnalyze, apiKey }),
 			})
 
 			if (!response.ok) {
-				throw new Error('Failed to summarize')
+				throw new Error('Failed to analyze')
 			}
 
-			const data = await response.json()
-			setSummary(data.summary)
+			const data: AnalysisResponse = await response.json()
+			setAnalysisResult(data)
 			setUploadStatus('done')
 		} catch (error) {
 			console.error(error)
 			setUploadStatus('idle')
-			toast.error('Error summarizing file', {
-				description: 'There was an error summarizing the file. Please check your API key and try again.',
+			toast.error('Error analyzing file', {
+				description: 'There was an error analyzing the file. Please check your API key and try again.',
 			})
 		} finally {
 			clearInterval(interval)
 			setProgress(100)
 		}
 	}
+
 	const successColor = 'text-green-500 dark:text-green-400'
 
 	const handleRegenerateClick = () => {
-		handleUpload(fileContent)
+		handleAnalyze(fileContent)
 	}
 
 	const handleReset = () => {
 		setUploadStatus('idle')
 		setFileContent('')
-		setSummary('')
+		setAnalysisResult(null)
 		setProgress(0)
 	}
 
@@ -331,7 +363,7 @@ export function FileUploader() {
 			</AnimatePresence>
 
 			<AnimatePresence>
-				{(uploadStatus === 'uploading' || uploadStatus === 'summarizing') && (
+				{(uploadStatus === 'uploading' || uploadStatus === 'analyzing') && (
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -339,7 +371,7 @@ export function FileUploader() {
 						<Card className="bg-card shadow-lg">
 							<CardContent className="p-6">
 								<h2 className="text-xl font-semibold mb-4 text-foreground">
-									{uploadStatus === 'uploading' ? 'Reading File' : 'Generating Summary'}
+									{uploadStatus === 'uploading' ? 'Reading File' : 'Analyzing Content'}
 								</h2>
 								<div className="space-y-4">
 									<div className="w-full bg-muted rounded-full h-2.5">
@@ -351,16 +383,16 @@ export function FileUploader() {
 									<Step
 										number={1}
 										text="Uploading file"
-										completed={isStepCompleted(uploadStatus, ['uploading', 'summarizing', 'done'])}
+										completed={isStepCompleted(uploadStatus, ['uploading', 'analyzing', 'done'])}
 									/>
 									<Step
 										number={2}
 										text="Analyzing content"
-										completed={isStepCompleted(uploadStatus, ['summarizing', 'done'])}
+										completed={isStepCompleted(uploadStatus, ['analyzing', 'done'])}
 									/>
 									<Step
 										number={3}
-										text="Generating summary"
+										text="Generating analysis"
 										completed={isStepCompleted(uploadStatus, ['done'])}
 									/>
 								</div>
@@ -371,7 +403,7 @@ export function FileUploader() {
 			</AnimatePresence>
 
 			<AnimatePresence>
-				{uploadStatus === 'done' && summary && (
+				{uploadStatus === 'done' && analysisResult && (
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -379,7 +411,7 @@ export function FileUploader() {
 						<Card className="bg-card shadow-lg">
 							<CardContent className="p-6">
 								<div className="flex justify-between items-center mb-4">
-									<h2 className="text-xl font-semibold text-foreground">Summary</h2>
+									<h2 className="text-xl font-semibold text-foreground">Discussion Analysis</h2>
 									<div className="space-x-2">
 										<Button variant="outline" size="sm" onClick={handleRegenerateClick}>
 											<RefreshCw className="w-4 h-4 mr-2" />
@@ -391,39 +423,47 @@ export function FileUploader() {
 										</Button>
 									</div>
 								</div>
-								<Alert>
-									<AlertTriangle className="h-4 w-4" />
-									<AlertTitle>AI-Generated Summary</AlertTitle>
-									<AlertDescription>
-										<ScrollArea className="h-[200px] w-full rounded-md border p-4">
-											{summary.split('\n').map((paragraph, index) => (
-												<p key={index} className="mb-4 text-sm text-foreground">
-													{paragraph}
-												</p>
-											))}
-										</ScrollArea>
-									</AlertDescription>
-								</Alert>
+
+								<div className="space-y-6">
+									{analysisResult.concepts.length > 0 ? (
+										<>
+											<div className="flex flex-wrap gap-2">
+												{analysisResult.concepts.map((concept, index) => (
+													<div
+														key={index}
+														className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm">
+														{concept}
+													</div>
+												))}
+											</div>
+
+											<ScrollArea className="h-[400px] w-full rounded-md border p-4">
+												{analysisResult.threads.map((thread, index) => (
+													<div key={index} className="mb-6">
+														<h3 className="text-lg font-semibold mb-2">{thread.concept}</h3>
+														<div className="text-sm text-muted-foreground whitespace-pre-wrap">
+															{thread.discussion}
+														</div>
+													</div>
+												))}
+											</ScrollArea>
+										</>
+									) : (
+										<Alert>
+											<AlertTriangle className="h-4 w-4" />
+											<AlertTitle>No Significant Topics Found</AlertTitle>
+											<AlertDescription>
+												The analysis couldn&apos;t identify any substantial discussion topics in the
+												content.
+											</AlertDescription>
+										</Alert>
+									)}
+								</div>
 							</CardContent>
 						</Card>
 					</motion.div>
 				)}
 			</AnimatePresence>
-		</div>
-	)
-}
-
-function Step({ number, text, completed }: { number: number; text: string; completed: boolean }) {
-	return (
-		<div className="flex items-center">
-			<div
-				className={`w-6 h-6 rounded-full flex items-center justify-center mr-2 ${
-					completed ? 'bg-green-500' : 'bg-primary'
-				}`}>
-				{completed ? '✓' : number}
-			</div>
-			<span className="text-sm text-foreground">{text}</span>
-			{!completed && <Loader2 className="animate-spin ml-2" />}
 		</div>
 	)
 }
