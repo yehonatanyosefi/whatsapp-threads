@@ -67,3 +67,12 @@ create trigger update_thread_analytics_trigger
   before insert or update of thread_data on threads
   for each row
   execute function update_thread_analytics();
+
+
+  -- Enable RLS on the threads table
+alter table threads enable row level security;
+
+-- Policy to allow everyone to select (view) data
+create policy select_policy on threads
+  for select
+  using (true);

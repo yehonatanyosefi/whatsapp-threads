@@ -283,6 +283,8 @@ export function FileUploader() {
 	const successColor = 'text-green-500 dark:text-green-400'
 
 	const handleRegenerateClick = () => {
+		setAnalysisResult(null)
+		setProgress(0)
 		handleAnalyze(fileContent)
 	}
 
