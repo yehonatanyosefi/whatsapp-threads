@@ -5,16 +5,18 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { cn } from '@/lib/utils'
+import { cn, getSiteURL, isProduction } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Check, Edit, FileText, Key, Loader2, RefreshCw } from 'lucide-react'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { Concepts } from './Concepts'
+import { Threads } from './Threads'
 
 type UploadStatus = 'idle' | 'uploading' | 'analyzing' | 'done'
 
-interface ThreadDiscussion {
+export interface ThreadDiscussion {
 	title: string
 	threads: {
 		timestamp: string
@@ -53,6 +55,7 @@ interface AnalysisResponse {
 	concepts: string[]
 	threads: ThreadResponse[]
 	message: string
+	id: string
 }
 
 interface StepProps {
@@ -79,11 +82,6 @@ function Step({ number, text, completed }: StepProps) {
 const isStepCompleted = (currentStatus: UploadStatus, requiredStatuses: UploadStatus[]): boolean => {
 	return requiredStatuses.includes(currentStatus)
 }
-
-function isThreadDiscussion(discussion: string | ThreadDiscussion): discussion is ThreadDiscussion {
-	return (discussion as ThreadDiscussion).title !== undefined
-}
-
 export function FileUploader() {
 	const [fileContent, setFileContent] = useState<string>('')
 	const [progress, setProgress] = useState<number>(0)
@@ -92,7 +90,6 @@ export function FileUploader() {
 	const [isKeyVerified, setIsKeyVerified] = useState<boolean>(false)
 	const [isTestingKey, setIsTestingKey] = useState<boolean>(false)
 	const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
-	const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({})
 
 	useEffect(() => {
 		const storedApiKey = localStorage.getItem('geminiApiKey')
@@ -296,13 +293,6 @@ export function FileUploader() {
 		setProgress(0)
 	}
 
-	const toggleThread = (threadId: string) => {
-		setExpandedThreads((prev) => ({
-			...prev,
-			[threadId]: !prev[threadId],
-		}))
-	}
-
 	return (
 		<div className="space-y-6 max-w-4xl mx-auto">
 			<Card className="bg-card shadow-lg">
@@ -465,116 +455,17 @@ export function FileUploader() {
 								<div className="space-y-6">
 									{analysisResult.concepts.length > 0 ? (
 										<>
-											<div className="flex flex-wrap gap-2">
-												{analysisResult.concepts.map((concept, index) => (
-													<div
-														key={index}
-														className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm">
-														{concept}
-													</div>
-												))}
-											</div>
-
-											<ScrollArea className="h-[400px] w-full rounded-md border p-4">
-												{analysisResult.threads.map((thread, index) => (
-													<div key={index} className="mb-8 border-b border-border pb-6 last:border-0">
-														<h3 className="text-lg font-semibold mb-4">{thread.concept}</h3>
-
-														{typeof thread.discussion === 'string' ? (
-															<div className="text-sm text-muted-foreground whitespace-pre-wrap">
-																{thread.discussion}
-															</div>
-														) : (
-															isThreadDiscussion(thread.discussion) &&
-															(thread.discussion.note ? (
-																<p className="text-sm text-muted-foreground">{thread.discussion.note}</p>
-															) : (
-																<>
-																	<div className="flex justify-between items-center mb-2">
-																		<h4 className="text-md font-medium">{thread.discussion.title}</h4>
-																		<Button
-																			variant="ghost"
-																			size="sm"
-																			onClick={() => toggleThread(`${index}`)}
-																			className="text-muted-foreground hover:text-foreground">
-																			{expandedThreads[`${index}`] ? 'Hide Details' : 'Show Details'}
-																		</Button>
-																	</div>
-
-																	{expandedThreads[`${index}`] && (
-																		<>
-																			{thread.discussion.threads.map((discussionThread, threadIndex) => (
-																				<div key={threadIndex} className="mb-4">
-																					<div className="bg-muted/50 p-3 rounded-md mb-2">
-																						<p className="text-sm text-muted-foreground mb-1">
-																							{discussionThread.timestamp}
-																						</p>
-																						<p className="text-sm font-medium">
-																							{discussionThread.initiator.who}:{' '}
-																							{discussionThread.initiator.question}
-																						</p>
-																						<p className="text-sm text-muted-foreground">
-																							Context: {discussionThread.initiator.context}
-																						</p>
-																					</div>
-
-																					{discussionThread.responses.map((response, responseIndex) => (
-																						<div key={responseIndex} className="ml-4 mb-2">
-																							<p className="text-sm font-medium">{response.who}:</p>
-																							<p className="text-sm">{response.contribution}</p>
-																							{response.key_points.length > 0 && (
-																								<ul className="list-disc list-inside text-sm text-muted-foreground ml-2">
-																									{response.key_points.map((point, pointIndex) => (
-																										<li key={pointIndex}>{point}</li>
-																									))}
-																								</ul>
-																							)}
-																							{response.attachments && (
-																								<p className="text-sm text-muted-foreground">
-																									Attachments: {response.attachments}
-																								</p>
-																							)}
-																						</div>
-																					))}
-
-																					<div className="mt-2 bg-muted/30 p-2 rounded-md">
-																						<p className="text-sm font-medium">Resolution:</p>
-																						<p className="text-sm">
-																							{discussionThread.resolution.outcome}
-																						</p>
-																						<p className="text-sm">
-																							Next steps: {discussionThread.resolution.next_steps}
-																						</p>
-																						{discussionThread.resolution.pending && (
-																							<p className="text-sm text-muted-foreground">
-																								Pending: {discussionThread.resolution.pending}
-																							</p>
-																						)}
-																					</div>
-																				</div>
-																			))}
-
-																			{/* {thread.discussion.action_items.length > 0 && (
-																				<div className="mt-4">
-																					<h5 className="text-sm font-medium mb-2">Action Items:</h5>
-																					<ul className="list-disc list-inside text-sm">
-																						{thread.discussion.action_items.map((item, itemIndex) => (
-																							<li key={itemIndex}>
-																								{item.task} - Assigned to: {item.owner}
-																								{item.deadline && ` (Due: ${item.deadline})`}
-																							</li>
-																						))}
-																					</ul>
-																				</div>
-																			)} */}
-																		</>
-																	)}
-																</>
-															))
-														)}
-													</div>
-												))}
-											</ScrollArea>
+											{isProduction() ? (
+												<p>
+													The result is complete! to see it go to{' '}
+													<Link href={`${getSiteURL()}thread/${analysisResult.id}`}>here</Link>
+												</p>
+											) : (
+												<>
+													<Concepts concepts={analysisResult.concepts} />
+													<Threads threads={analysisResult.threads} />
+												</>
+											)}
 										</>
 									) : (
 										<Alert>

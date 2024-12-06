@@ -1,4 +1,7 @@
+import { isProduction } from '@/lib/utils'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
 
 // Constants for configuration
 const MAX_RETRIES = 3
@@ -458,12 +461,31 @@ export async function POST(req: Request) {
 		// Generate thread summaries
 		const threads = await processConceptBatches(apiKey, concepts, sanitizedContent)
 
+		// Only save to Supabase in production
+		let savedThread = null
+		if (isProduction()) {
+			const supabase = createRouteHandlerClient({ cookies })
+			const { data, error: saveError } = await supabase
+				.from('threads')
+				.insert({
+					content,
+					concepts,
+					thread_data: { threads },
+				})
+				.select('id, share_id')
+				.single()
+
+			if (saveError) throw saveError
+			savedThread = data
+			console.log('Saved to Supabase with ID:', savedThread.id, 'Share ID:', savedThread.share_id)
+		}
+
 		const response = {
 			concepts,
 			threads,
 			message: 'Analysis completed successfully',
+			id: savedThread?.id,
 		}
-
 		return new Response(JSON.stringify(response), {
 			status: 200,
 			headers: {
