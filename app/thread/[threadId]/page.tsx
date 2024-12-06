@@ -1,4 +1,6 @@
 import { Concepts } from '@/components/Concepts'
+import { Footer } from '@/components/Footer'
+import { Header } from '@/components/Header'
 import { Threads } from '@/components/Threads'
 import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
@@ -27,10 +29,14 @@ export default async function Page({ params }: PageProps) {
 	}
 
 	return (
-		<div>
-			<h1>Thread #{thread.id}</h1>
-			<Concepts concepts={thread.concepts} />
-			<Threads threads={thread.thread_data.threads} />
+		<div className="min-h-screen flex flex-col bg-background">
+			<Header />
+			<div className="p-4 max-w-4xl mx-auto mt-10 flex flex-col gap-4">
+				<h1 className="text-2xl font-bold mb-4">Thread #{thread.id}</h1>
+				<Concepts concepts={thread.concepts} />
+				<Threads threads={thread.thread_data.threads} />
+			</div>
+			<Footer />
 		</div>
 	)
 }
