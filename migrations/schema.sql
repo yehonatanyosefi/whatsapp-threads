@@ -71,10 +71,10 @@ create trigger update_thread_analytics_trigger
 
   -- Enable RLS on the threads table
 alter table threads enable row level security;
-drop policy if exists select_policy on threads;
-create policy select_policy on threads
-  for select
-  using (
-    id::text = coalesce(current_setting('request.jwt.claims.thread_id', true), '')
-    or share_id = coalesce(current_setting('request.jwt.claims.share_id', true), '')
-  );
+
+DROP POLICY IF EXISTS "require_id_filter" ON threads;
+
+CREATE POLICY "require_id_filter" ON threads
+FOR SELECT
+TO authenticated
+USING (id = (select auth.uid()));
