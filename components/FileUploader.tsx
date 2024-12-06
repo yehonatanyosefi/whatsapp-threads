@@ -460,7 +460,11 @@ export function FileUploader() {
 											{isProduction() ? (
 												<p>
 													The result is complete! to see it go to{' '}
-													<Link href={`${getSiteURL()}thread/${analysisResult.id}`}>here</Link>
+													<Link
+														href={`${getSiteURL()}thread/${analysisResult.id}`}
+														className="text-primary hover:underline">
+														here
+													</Link>
 												</p>
 											) : (
 												<>

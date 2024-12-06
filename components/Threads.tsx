@@ -16,6 +16,27 @@ type ThreadsProps = {
 	}[]
 }
 
+function convertLinksToJSX(text: string) {
+	const urlRegex = /(https?:\/\/[^\s]+)/g
+	const parts = text.split(urlRegex)
+
+	return parts.map((part, i) => {
+		if (part.match(urlRegex)) {
+			return (
+				<a
+					key={i}
+					href={part}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="text-primary hover:underline">
+					{part}
+				</a>
+			)
+		}
+		return part
+	})
+}
+
 export function Threads({ threads }: ThreadsProps) {
 	const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({})
 
@@ -32,7 +53,9 @@ export function Threads({ threads }: ThreadsProps) {
 					<h3 className="text-lg font-semibold mb-4">{thread.concept}</h3>
 
 					{typeof thread.discussion === 'string' ? (
-						<div className="text-sm text-muted-foreground whitespace-pre-wrap">{thread.discussion}</div>
+						<div className="text-sm text-muted-foreground whitespace-pre-wrap">
+							{convertLinksToJSX(thread.discussion)}
+						</div>
 					) : (
 						isThreadDiscussion(thread.discussion) &&
 						(thread.discussion.note ? (
@@ -69,7 +92,7 @@ export function Threads({ threads }: ThreadsProps) {
 												{discussionThread.responses.map((response, responseIndex) => (
 													<div key={responseIndex} className="ml-4 mb-2">
 														<p className="text-sm font-medium">{response.who}:</p>
-														<p className="text-sm">{response.contribution}</p>
+														<p className="text-sm">{convertLinksToJSX(response.contribution)}</p>
 														{response.key_points.length > 0 && (
 															<ul className="list-disc list-inside text-sm text-muted-foreground ml-2">
 																{response.key_points.map((point, pointIndex) => (
