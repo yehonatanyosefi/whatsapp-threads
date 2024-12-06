@@ -261,6 +261,54 @@ export function FileUploader() {
 		setProgress(0)
 	}
 
+	const handleDrop = async (event: React.DragEvent<HTMLLabelElement>) => {
+		event.preventDefault()
+		event.stopPropagation()
+
+		const droppedFiles = Array.from(event.dataTransfer.files)
+		const file = droppedFiles[0]
+
+		if (file) {
+			const allowedTypes = ['text/plain']
+
+			if (!allowedTypes.includes(file.type)) {
+				toast.error('Invalid file type', {
+					description: 'Please upload a TXT file exported from WhatsApp.',
+				})
+				return
+			}
+
+			if (file.size > 10 * 1024 * 1024) {
+				toast.error('File too large', {
+					description: 'Please upload a file smaller than 10MB.',
+				})
+				return
+			}
+
+			setProgress(0)
+			setUploadStatus('uploading')
+
+			try {
+				const content = await readFileContent(file)
+				setFileContent(content)
+				if (isKeyVerified) {
+					handleAnalyze(content)
+				}
+			} catch (error) {
+				console.error('File reading error:', error)
+				setUploadStatus('idle')
+				toast.error('Error reading file', {
+					description: 'There was an error reading the file. Please try again.',
+				})
+			}
+		}
+	}
+
+	const handleDragOver = (event: React.DragEvent<HTMLLabelElement>) => {
+		event.preventDefault()
+		event.stopPropagation()
+	}
+
 	return (
 		<div className="space-y-6 max-w-4xl mx-auto">
 			<Card className="bg-card shadow-lg">
@@ -335,7 +383,9 @@ export function FileUploader() {
 							<CardContent className="p-0">
 								<label
 									htmlFor="file-upload"
-									className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/70 transition-colors relative overflow-hidden group">
+									className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/70 transition-colors relative overflow-hidden group"
+									onDrop={handleDrop}
+									onDragOver={handleDragOver}>
 									<div className="flex flex-col items-center justify-center pt-5 pb-6 z-10">
 										<FileText className="w-16 h-16 mb-3 text-primary transition-transform group-hover:scale-110" />
 										<p className="mb-2 text-sm text-muted-foreground">
