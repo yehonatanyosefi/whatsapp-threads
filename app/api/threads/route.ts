@@ -134,27 +134,52 @@ async function extractConcepts(
 		const { systemPrompt, userPrompt } = getConceptExtractionPrompts(content)
 
 		const conceptsResult = await withRetry(async () => {
-			return await model.generateContent({
-				contents: [
-					{ role: 'system', parts: [{ text: systemPrompt }] },
-					{ role: 'user', parts: [{ text: userPrompt }] },
-				],
-			})
+			try {
+				const result = await model.generateContent({
+					contents: [
+						{ role: 'system', parts: [{ text: systemPrompt }] },
+						{ role: 'user', parts: [{ text: userPrompt }] },
+					],
+				})
+
+				if (!result.response) {
+					throw new Error('Empty response from Gemini API')
+				}
+
+				return result
+			} catch (error) {
+				console.error('Gemini API error details:', {
+					error: error instanceof Error ? error.message : 'Unknown error',
+					timestamp: new Date().toISOString(),
+				})
+				throw error
+			}
 		})
 
 		const conceptsJson = conceptsResult.response.text()
-		const concepts = JSON.parse(conceptsJson)
 
-		if (!Array.isArray(concepts)) {
-			throw new Error('Invalid concepts format')
+		try {
+			const concepts = JSON.parse(conceptsJson)
+			if (!Array.isArray(concepts)) {
+				throw new Error('Invalid concepts format')
+			}
+			return { concepts }
+		} catch (parseError) {
+			console.error('JSON parsing error:', {
+				response: conceptsJson,
+				error: parseError instanceof Error ? parseError.message : 'Unknown parse error',
+			})
+			throw parseError
 		}
-
-		return { concepts }
-	} catch (error) {
-		console.error('Error extracting concepts:', error)
+	} catch (error: unknown) {
+		console.error('Error extracting concepts:', {
+			error: error instanceof Error ? error.message : 'Unknown error',
+			type: error instanceof Error ? error.constructor.name : 'Unknown',
+			timestamp: new Date().toISOString(),
+		})
 		return {
 			concepts: [],
-			error: 'Failed to extract concepts from chat history',
+			error: 'Failed to extract concepts from chat history. Please try again later.',
 		}
 	}
 }
