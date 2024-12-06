@@ -467,7 +467,8 @@ export function FileUploader() {
 													The result is complete! to see it go to{' '}
 													<Link
 														href={`${getSiteURL()}thread/${analysisResult.id}`}
-														className="text-primary hover:underline">
+														className="text-primary hover:underline"
+														prefetch>
 														here
 													</Link>
 												</p>
