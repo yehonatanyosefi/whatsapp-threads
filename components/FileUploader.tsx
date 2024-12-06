@@ -95,7 +95,7 @@ export function FileUploader() {
 		const storedApiKey = localStorage.getItem('geminiApiKey')
 		if (storedApiKey) {
 			setApiKey(storedApiKey)
-			testApiKey(storedApiKey)
+			setIsKeyVerified(true)
 		}
 	}, [])
 
@@ -207,6 +207,11 @@ export function FileUploader() {
 	}
 
 	const testApiKey = async (keyToTest: string = apiKey) => {
+		if (isKeyVerified && keyToTest === apiKey) {
+			setIsKeyVerified(true)
+			return
+		}
+
 		setIsTestingKey(true)
 		try {
 			const response = await fetch('/api/test-api-key', {
