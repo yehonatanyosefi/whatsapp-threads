@@ -14,9 +14,39 @@ import { toast } from 'sonner'
 
 type UploadStatus = 'idle' | 'uploading' | 'analyzing' | 'done'
 
+interface ThreadDiscussion {
+	title: string
+	threads: {
+		timestamp: string
+		initiator: {
+			who: string
+			question: string
+			context: string
+		}
+		responses: {
+			who: string
+			contribution: string
+			key_points: string[]
+			attachments?: string
+		}[]
+		resolution: {
+			outcome: string
+			next_steps: string
+			pending?: string
+		}
+	}[]
+	related_topics: string[]
+	action_items: {
+		task: string
+		owner: string
+		deadline?: string
+	}[]
+	note?: string
+}
+
 interface ThreadResponse {
 	concept: string
-	discussion: string
+	discussion: string | ThreadDiscussion
 }
 
 interface AnalysisResponse {
@@ -48,6 +78,10 @@ function Step({ number, text, completed }: StepProps) {
 
 const isStepCompleted = (currentStatus: UploadStatus, requiredStatuses: UploadStatus[]): boolean => {
 	return requiredStatuses.includes(currentStatus)
+}
+
+function isThreadDiscussion(discussion: string | ThreadDiscussion): discussion is ThreadDiscussion {
+	return (discussion as ThreadDiscussion).title !== undefined
 }
 
 export function FileUploader() {
@@ -218,7 +252,7 @@ export function FileUploader() {
 			progress += 10
 			setProgress(Math.min(progress, 100))
 			if (progress >= 100) clearInterval(interval)
-		}, 500)
+		}, 1000 * 8)
 
 		try {
 			const response = await fetch('/api/threads', {
@@ -234,6 +268,7 @@ export function FileUploader() {
 			}
 
 			const data: AnalysisResponse = await response.json()
+			console.log(`data:`, data)
 			setAnalysisResult(data)
 			setUploadStatus('done')
 		} catch (error) {
@@ -259,54 +294,6 @@ export function FileUploader() {
 		setFileContent('')
 		setAnalysisResult(null)
 		setProgress(0)
-	}
-
-	const handleDrop = async (event: React.DragEvent<HTMLLabelElement>) => {
-		event.preventDefault()
-		event.stopPropagation()
-
-		const droppedFiles = Array.from(event.dataTransfer.files)
-		const file = droppedFiles[0]
-
-		if (file) {
-			const allowedTypes = ['text/plain']
-
-			if (!allowedTypes.includes(file.type)) {
-				toast.error('Invalid file type', {
-					description: 'Please upload a TXT file exported from WhatsApp.',
-				})
-				return
-			}
-
-			if (file.size > 10 * 1024 * 1024) {
-				toast.error('File too large', {
-					description: 'Please upload a file smaller than 10MB.',
-				})
-				return
-			}
-
-			setProgress(0)
-			setUploadStatus('uploading')
-
-			try {
-				const content = await readFileContent(file)
-				setFileContent(content)
-				if (isKeyVerified) {
-					handleAnalyze(content)
-				}
-			} catch (error) {
-				console.error('File reading error:', error)
-				setUploadStatus('idle')
-				toast.error('Error reading file', {
-					description: 'There was an error reading the file. Please try again.',
-				})
-			}
-		}
-	}
-
-	const handleDragOver = (event: React.DragEvent<HTMLLabelElement>) => {
-		event.preventDefault()
-		event.stopPropagation()
 	}
 
 	return (
@@ -383,9 +370,7 @@ export function FileUploader() {
 							<CardContent className="p-0">
 								<label
 									htmlFor="file-upload"
-									className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/70 transition-colors relative overflow-hidden group"
-									onDrop={handleDrop}
-									onDragOver={handleDragOver}>
+									className="flex flex-col items-center justify-center w-full h-64 border-2 border-dashed rounded-lg cursor-pointer bg-muted/50 hover:bg-muted/70 transition-colors relative overflow-hidden group">
 									<div className="flex flex-col items-center justify-center pt-5 pb-6 z-10">
 										<FileText className="w-16 h-16 mb-3 text-primary transition-transform group-hover:scale-110" />
 										<p className="mb-2 text-sm text-muted-foreground">
@@ -485,11 +470,86 @@ export function FileUploader() {
 
 											<ScrollArea className="h-[400px] w-full rounded-md border p-4">
 												{analysisResult.threads.map((thread, index) => (
-													<div key={index} className="mb-6">
-														<h3 className="text-lg font-semibold mb-2">{thread.concept}</h3>
-														<div className="text-sm text-muted-foreground whitespace-pre-wrap">
-															{thread.discussion}
-														</div>
+													<div key={index} className="mb-8 border-b border-border pb-6 last:border-0">
+														<h3 className="text-lg font-semibold mb-4">{thread.concept}</h3>
+
+														{typeof thread.discussion === 'string' ? (
+															<div className="text-sm text-muted-foreground whitespace-pre-wrap">
+																{thread.discussion}
+															</div>
+														) : (
+															isThreadDiscussion(thread.discussion) &&
+															(thread.discussion.note ? (
+																<p className="text-sm text-muted-foreground">{thread.discussion.note}</p>
+															) : (
+																<>
+																	<h4 className="text-md font-medium mb-2">{thread.discussion.title}</h4>
+
+																	{thread.discussion.threads.map((discussionThread, threadIndex) => (
+																		<div key={threadIndex} className="mb-4">
+																			<div className="bg-muted/50 p-3 rounded-md mb-2">
+																				<p className="text-sm text-muted-foreground mb-1">
+																					{discussionThread.timestamp}
+																				</p>
+																				<p className="text-sm font-medium">
+																					{discussionThread.initiator.who}:{' '}
+																					{discussionThread.initiator.question}
+																				</p>
+																				<p className="text-sm text-muted-foreground">
+																					Context: {discussionThread.initiator.context}
+																				</p>
+																			</div>
+
+																			{discussionThread.responses.map((response, responseIndex) => (
+																				<div key={responseIndex} className="ml-4 mb-2">
+																					<p className="text-sm font-medium">{response.who}:</p>
+																					<p className="text-sm">{response.contribution}</p>
+																					{response.key_points.length > 0 && (
+																						<ul className="list-disc list-inside text-sm text-muted-foreground ml-2">
+																							{response.key_points.map((point, pointIndex) => (
+																								<li key={pointIndex}>{point}</li>
+																							))}
+																						</ul>
+																					)}
+																					{response.attachments && (
+																						<p className="text-sm text-muted-foreground">
+																							Attachments: {response.attachments}
+																						</p>
+																					)}
+																				</div>
+																			))}
+
+																			<div className="mt-2 bg-muted/30 p-2 rounded-md">
+																				<p className="text-sm font-medium">Resolution:</p>
+																				<p className="text-sm">{discussionThread.resolution.outcome}</p>
+																				<p className="text-sm">
+																					Next steps: {discussionThread.resolution.next_steps}
+																				</p>
+																				{discussionThread.resolution.pending && (
+																					<p className="text-sm text-muted-foreground">
+																						Pending: {discussionThread.resolution.pending}
+																					</p>
+																				)}
+																			</div>
+																		</div>
+																	))}
+
+																	{thread.discussion.action_items.length > 0 && (
+																		<div className="mt-4">
+																			<h5 className="text-sm font-medium mb-2">Action Items:</h5>
+																			<ul className="list-disc list-inside text-sm">
+																				{thread.discussion.action_items.map((item, itemIndex) => (
+																					<li key={itemIndex}>
+																						{item.task} - Assigned to: {item.owner}
+																						{item.deadline && ` (Due: ${item.deadline})`}
+																					</li>
+																				))}
+																			</ul>
+																		</div>
+																	)}
+																</>
+															))
+														)}
 													</div>
 												))}
 											</ScrollArea>

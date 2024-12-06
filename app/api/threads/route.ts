@@ -356,18 +356,25 @@ async function generateThreadSummary(
 				throw new Error('Empty response from Gemini API')
 			}
 
+			// Clean up the response text by removing markdown code blocks
+			const cleanedResponse = result.response
+				.text()
+				.replace(/```json\n?/g, '')
+				.replace(/```\n?/g, '')
+				.trim()
+
 			// Validate JSON structure
-			const response = JSON.parse(result.response.text())
+			const response = JSON.parse(cleanedResponse)
 			if (!response.title || !response.threads) {
 				throw new Error('Invalid response structure')
 			}
 
-			return result
+			return response
 		})
 
 		return {
 			concept,
-			discussion: JSON.parse(threadResult.response.text()),
+			discussion: threadResult,
 		}
 	} catch (error) {
 		console.error('Thread generation error:', {
