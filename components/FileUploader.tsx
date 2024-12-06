@@ -9,18 +9,23 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Check, Edit, FileText, Key, Loader2, RefreshCw } from 'lucide-react'
-import { type TextItem } from 'pdfjs-dist/types/src/display/api'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
+type UploadStatus = 'idle' | 'uploading' | 'summarizing' | 'done'
+
+const isStepCompleted = (currentStatus: UploadStatus, requiredStatuses: UploadStatus[]): boolean => {
+	return requiredStatuses.includes(currentStatus)
+}
+
 export function FileUploader() {
 	const [fileContent, setFileContent] = useState<string>('')
-	const [loadingStep, setLoadingStep] = useState<number>(0)
 	const [progress, setProgress] = useState<number>(0)
 	const [apiKey, setApiKey] = useState<string>('')
 	const [summary, setSummary] = useState<string>('')
 	const [isKeyVerified, setIsKeyVerified] = useState<boolean>(false)
 	const [isTestingKey, setIsTestingKey] = useState<boolean>(false)
+	const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
 
 	useEffect(() => {
 		const storedApiKey = localStorage.getItem('geminiApiKey')
@@ -54,8 +59,8 @@ export function FileUploader() {
 			}
 
 			setProgress(0)
-			setLoadingStep(0)
 			setSummary('')
+			setUploadStatus('uploading')
 
 			try {
 				const content = await readFileContent(selectedFile)
@@ -65,6 +70,7 @@ export function FileUploader() {
 				}
 			} catch (error) {
 				console.error('File reading error:', error)
+				setUploadStatus('idle')
 				toast.error('Error reading file', {
 					description: 'There was an error reading the file. Please try again.',
 				})
@@ -94,16 +100,14 @@ export function FileUploader() {
 						pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 
 						const arrayBuffer = await file.arrayBuffer()
-						const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-						const numPages = pdf.numPages
-						let fullText = ''
+						const loadingTask = pdfjsLib.getDocument(new Uint8Array(arrayBuffer))
+						const pdf = await loadingTask.promise
 
-						for (let i = 1; i <= numPages; i++) {
+						let fullText = ''
+						for (let i = 1; i <= pdf.numPages; i++) {
 							const page = await pdf.getPage(i)
-							const content = await page.getTextContent()
-							const pageText = content.items
-								.map((item) => ('str' in item ? (item as TextItem).str : ''))
-								.join(' ')
+							const textContent = await page.getTextContent()
+							const pageText = textContent.items.map((item) => ('str' in item ? item.str : '')).join(' ')
 							fullText += pageText + '\n\n'
 						}
 
@@ -114,7 +118,7 @@ export function FileUploader() {
 					}
 				}
 
-				handlePdf()
+				handlePdf().catch(reject)
 			} else if (
 				file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 			) {
@@ -181,7 +185,7 @@ export function FileUploader() {
 	const handleUpload = async (contentToUpload: string = fileContent) => {
 		if (!apiKey) return
 
-		setLoadingStep(1)
+		setUploadStatus('summarizing')
 		let progress = 0
 		const interval = setInterval(() => {
 			progress += 10
@@ -204,9 +208,10 @@ export function FileUploader() {
 
 			const data = await response.json()
 			setSummary(data.summary)
-			setLoadingStep(3)
+			setUploadStatus('done')
 		} catch (error) {
 			console.error(error)
+			setUploadStatus('idle')
 			toast.error('Error summarizing file', {
 				description: 'There was an error summarizing the file. Please check your API key and try again.',
 			})
@@ -219,6 +224,13 @@ export function FileUploader() {
 
 	const handleRegenerateClick = () => {
 		handleUpload(fileContent)
+	}
+
+	const handleReset = () => {
+		setUploadStatus('idle')
+		setFileContent('')
+		setSummary('')
+		setProgress(0)
 	}
 
 	return (
@@ -286,7 +298,7 @@ export function FileUploader() {
 			</Card>
 
 			<AnimatePresence>
-				{isKeyVerified && (
+				{isKeyVerified && uploadStatus === 'idle' && (
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -319,14 +331,16 @@ export function FileUploader() {
 			</AnimatePresence>
 
 			<AnimatePresence>
-				{loadingStep > 0 && (
+				{(uploadStatus === 'uploading' || uploadStatus === 'summarizing') && (
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -20 }}>
 						<Card className="bg-card shadow-lg">
 							<CardContent className="p-6">
-								<h2 className="text-xl font-semibold mb-4 text-foreground">Processing</h2>
+								<h2 className="text-xl font-semibold mb-4 text-foreground">
+									{uploadStatus === 'uploading' ? 'Reading File' : 'Generating Summary'}
+								</h2>
 								<div className="space-y-4">
 									<div className="w-full bg-muted rounded-full h-2.5">
 										<div
@@ -334,9 +348,21 @@ export function FileUploader() {
 											style={{ width: `${progress}%` }}
 										/>
 									</div>
-									<Step number={1} text="Uploading file" completed={loadingStep > 1} />
-									<Step number={2} text="Analyzing content" completed={loadingStep > 2} />
-									<Step number={3} text="Generating summary" completed={loadingStep > 3} />
+									<Step
+										number={1}
+										text="Uploading file"
+										completed={isStepCompleted(uploadStatus, ['uploading', 'summarizing', 'done'])}
+									/>
+									<Step
+										number={2}
+										text="Analyzing content"
+										completed={isStepCompleted(uploadStatus, ['summarizing', 'done'])}
+									/>
+									<Step
+										number={3}
+										text="Generating summary"
+										completed={isStepCompleted(uploadStatus, ['done'])}
+									/>
 								</div>
 							</CardContent>
 						</Card>
@@ -345,7 +371,7 @@ export function FileUploader() {
 			</AnimatePresence>
 
 			<AnimatePresence>
-				{summary && (
+				{uploadStatus === 'done' && summary && (
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -354,10 +380,16 @@ export function FileUploader() {
 							<CardContent className="p-6">
 								<div className="flex justify-between items-center mb-4">
 									<h2 className="text-xl font-semibold text-foreground">Summary</h2>
-									<Button variant="outline" size="sm" onClick={handleRegenerateClick}>
-										<RefreshCw className="w-4 h-4 mr-2" />
-										Regenerate
-									</Button>
+									<div className="space-x-2">
+										<Button variant="outline" size="sm" onClick={handleRegenerateClick}>
+											<RefreshCw className="w-4 h-4 mr-2" />
+											Regenerate
+										</Button>
+										<Button variant="default" size="sm" onClick={handleReset}>
+											<FileText className="w-4 h-4 mr-2" />
+											Process Another File
+										</Button>
+									</div>
 								</div>
 								<Alert>
 									<AlertTriangle className="h-4 w-4" />
@@ -372,28 +404,6 @@ export function FileUploader() {
 										</ScrollArea>
 									</AlertDescription>
 								</Alert>
-							</CardContent>
-						</Card>
-					</motion.div>
-				)}
-			</AnimatePresence>
-
-			<AnimatePresence>
-				{fileContent && (
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -20 }}>
-						<Card className="bg-card shadow-lg">
-							<CardContent className="p-6">
-								<h2 className="text-xl font-semibold mb-4 text-foreground">File Content</h2>
-								<ScrollArea className="h-[300px] w-full rounded-md border p-4">
-									{fileContent.split('\n').map((line, index) => (
-										<p key={index} className="mb-2 text-sm text-foreground">
-											{line}
-										</p>
-									))}
-								</ScrollArea>
 							</CardContent>
 						</Card>
 					</motion.div>
