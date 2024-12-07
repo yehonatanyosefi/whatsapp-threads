@@ -180,6 +180,7 @@ ANALYSIS GUIDELINES:
 - Note any shifts in topics or conversation flow.
 - Differentiate between individual opinions and group consensus.
 - Identify any conflicts or disagreements and their resolutions.
+- ONLY INCLUDE RELEVANT INFORMATION TO THE CONCEPT in the threads. NOTHING ELSE.
 
 EXAMPLE OF BAD SUMMARIES (DO NOT WRITE LIKE THIS):
 - "The team discussed various options for the project."
