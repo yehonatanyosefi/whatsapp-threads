@@ -204,23 +204,24 @@ SUMMARY MUST INCLUDE:
 4. What was the final outcome or next steps
 5. Any relevant context that helps understand the significance
 6. Specific timeframes or deadlines mentioned
-7. Detailed explanation of all the mentioned taglines, acronyms, and abbreviations, tools, places
-8. 
+7. Detailed explanation of all the mentioned taglines, acronyms, and abbreviations, tools, websites, places, etc... If you know them.
+8. Any other important context that helps understand the meaning of the discussion.
 
 LANGUAGE HANDLING RULES:
 1. Detect the primary language of the conversation
 2. Keep all JSON keys in English (e.g., "title", "summary", "participants")
 3. Write all content values in the detected language. IT MUST BE IN THE DETECTED LANGUAGE. If you detect Hebrew, write in Hebrew. If you detect English, write in English. if you detect Russian, write in Russian. including the title's content.
 4. Status values should remain in English: "Pending", "In Progress", "Completed"
-5. Dates and timestamps should use a consistent format regardless of language
+5. Dates and timestamps should use a consistent format regardless of language. The format should be YYYY-MM-DD.
 
 EXAMPLE OUTPUT STRUCTURE IN HEBREW:
 {
     "title": "דיון על שינויים בתקציב החברה",
     "language": "he",
+	"additional_context": "יונתן הוא מנהל פרוייקט בחברת שיווק ורחל מנהלת חשבונות בחברה. דוד הוא מנהל פרוייקט בחברת שיווק.",
     "threads": [
         {
-            "timestamp": "2024-03-15 10:00-11:30",
+            "timestamp": "2024-03-15",
             "participants": ["יונתן", "רחל", "דוד"],
             "summary": "יונתן הציע להגדיל את תקציב השיווק ב-20%. רחל תמכה ברעיון והציגה נתונים מהרבעון האחרון. דוד הסכים והוסיף שיש לבחון מחדש את ההקצאה בעוד שלושה חודשים.",
             "attachments": ["דוח תקציב Q1.pdf"],
@@ -228,7 +229,6 @@ EXAMPLE OUTPUT STRUCTURE IN HEBREW:
             "notes": "נדרש אישור סופי מההנהלה"
         }
     ],
-    "related_topics": ["תכנון תקציבי 2024", "יעדי צמיחה"],
     "follow_ups": [
         {
             "task": "הכנת מצגת לישיבת הנהלה",
