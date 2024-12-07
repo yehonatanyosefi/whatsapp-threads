@@ -476,27 +476,36 @@ async function processConceptBatches(
 	return threads
 }
 
-function filterLastMonth(content: string): string {
+function keepOnlyLastMonth(content: string): string {
 	const oneMonthAgo = new Date()
 	oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
 
 	// Split content into lines and filter
-	return content
+	const filteredContent = content
 		.split('\n')
 		.filter((line) => {
 			// Look for any standardized timestamp in the line
 			const timestampMatches = line.match(
-				/\d{1,2}\/\d{1,2}\/\d{2,4},\s\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?/g
+				/(?:\d{1,2}\/\d{1,2}\/\d{2,4},\s\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z)/g
 			)
 			if (!timestampMatches) return true // Keep lines without timestamps
 
 			// Parse the first timestamp found in the line
-			const parsedDate = parseWhatsAppDate(timestampMatches[0])
-			if (!parsedDate) return true // Keep lines with unparseable timestamps
+			const parsedDate = new Date(timestampMatches[0]) // Direct parsing for ISO strings
+			if (isNaN(parsedDate.getTime())) {
+				// If ISO parsing fails, try WhatsApp format
+				const whatsAppDate = parseWhatsAppDate(timestampMatches[0])
+				if (!whatsAppDate) return true // Keep lines with unparseable timestamps
+				return whatsAppDate >= oneMonthAgo
+			}
 
+			// Keep only messages between one month ago and now
 			return parsedDate >= oneMonthAgo
 		})
 		.join('\n')
+		.trim()
+
+	return filteredContent || content // Return original content if everything was filtered out
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -525,7 +534,7 @@ export async function POST(req: Request): Promise<Response> {
 			)
 		}
 		if (onlyLastMonth) {
-			sanitizedContent = filterLastMonth(sanitizedContent)
+			sanitizedContent = keepOnlyLastMonth(sanitizedContent)
 		}
 
 		// Extract concepts
