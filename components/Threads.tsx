@@ -33,9 +33,11 @@ export function Threads({ threads }: ThreadsProps) {
 	}
 
 	return (
-		<ScrollArea className="h-[90vh] w-full rounded-md border p-4">
+		<ScrollArea className="h-[90vh] w-full rounded-md border p-4 max-w-screen-lg">
 			{threads.map((thread, index) => (
-				<div key={index} className="mb-8 border-b border-border pb-6 last:border-0">
+				<div
+					key={index}
+					className="mb-8 border-b border-border pb-6 last:border-0 max-w-[800px] mx-auto">
 					<h3 className="text-lg font-semibold mb-4">{thread.concept}</h3>
 
 					{isThreadDiscussion(thread.discussion) && (
@@ -58,7 +60,7 @@ export function Threads({ threads }: ThreadsProps) {
 									{thread.discussion.threads.map((discussionThread, threadIndex) => (
 										<div
 											key={threadIndex}
-											className="mb-4"
+											className="mb-4 max-w-[800px]"
 											dir={isThreadInRTLLanguage(thread.discussion) ? 'rtl' : 'ltr'}>
 											<div className="bg-muted/50 p-3 rounded-md mb-2">
 												<p className="text-sm text-muted-foreground mb-1">
