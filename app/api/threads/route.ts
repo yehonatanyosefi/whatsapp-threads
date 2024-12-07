@@ -510,7 +510,6 @@ export async function POST(req: Request): Promise<Response> {
 			apiKey: null,
 			onlyLastMonth: true,
 		}))
-		console.log(`onlyLastMonth:`, onlyLastMonth)
 
 		if (!apiKey) {
 			return new Response(JSON.stringify({ error: 'Gemini API key is required' }), { status: 400 })
