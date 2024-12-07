@@ -143,7 +143,7 @@ STRICT OUTPUT REQUIREMENTS:
 - Return [] if no significant topics are found.
 - No additional text or explanations.
 - Each topic must be 2-6 words maximum.
-- Extract 3-10 topics maximum.
+- Extract 3-15 topics maximum. Try to extract as many as possible.
 - Topics must be in Title Case.
 
 ANALYSIS GUIDELINES:
@@ -208,13 +208,16 @@ INVALID TOPIC EXAMPLES:
 - "Random thoughts" (not specific)
 
 VALID TOPIC EXAMPLES:
-- "Project Deadline Extension"
+- "Project 'Zersal' Deadline Extension"
 - "Family Reunion Plans"
-- "Website Launch Date"
-- "Technical Issue with App"
-- "Vacation Recommendations"
-- "Team Member Farewell Party"
+- "Website Launch Date (May 15th)"
+- "Technical Issue with App - Can't login"
+- "Vacation Recommendations For Fuji"
+- "Alex Farewell Party Planning"
 - "Emergency Procedures Update"
+- "Made fun of David for his new haircut"
+- "Discussed the new product's name"
+- "Josh made a mistake with the pizza order"
 `
 
 	const userPrompt = `Extract the key topics from this group chat conversation.
