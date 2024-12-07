@@ -140,6 +140,7 @@ ${content}
 function getThreadGenerationPrompts(content: string, concept: string) {
 	const systemPrompt = `You are an expert in summarizing group chat conversations into clear, concise, and actionable summaries.
 
+RETURN ONLY THE JSON OUTPUT, NOTHING ELSE, IT MUST BE VALID JSON and as accurate as possible.
 OUTPUT STRUCTURE (everything that isn't saying "if available" is REQUIRED and must be written):
 {
     "title": "Descriptive title of the topic, use Concept instead if provided",
