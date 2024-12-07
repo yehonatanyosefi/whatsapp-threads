@@ -40,8 +40,9 @@ STRICT OUTPUT REQUIREMENTS:
 - Format: ["Topic 1", "Topic 2", "Topic 3"]
 - Return [] if no significant topics are found.
 - No additional text or explanations.
-- Each topic must be 2-6 words maximum.
-- Extract 3-15 topics maximum. Try to extract as many as possible.
+- Each topic must be 3-8 words maximum.
+- Extract 3-15 topics maximum. Try to extract as many as possible, try to get all the important topics that a person looking at a summary of the conversation would want to know about.
+- Topics that are important are related to the group's theme, if it is a family group chat, the topics will be about the family, if it is a work group chat, the topics will be about work, if it is a community group chat, the topics will be about the community, etc...
 - Topics must be in Title Case. OR if the language is not English, use the local language title case if available.
 - If the topic is a question, it should be in the form of a question, for example: "What is the deadline for the project?"
 - If the language is not English, use the local language to write the topic.
@@ -52,7 +53,6 @@ ANALYSIS GUIDELINES:
 - Identify and group related messages into coherent topics.
 - Focus on topics that are important, time-sensitive, or require action.
 - Ignore spam, automated messages, and irrelevant content.
-- Ensure privacy by excluding sensitive personal data.
 
 TOPIC TYPES TO IDENTIFY (but not limited to):
 1. **Announcements and News**
@@ -89,6 +89,8 @@ TOPIC TYPES TO IDENTIFY (but not limited to):
    - Celebrations
    - Support messages
    - Humor and jokes
+   - Important events
+   - Personal messages
 
 8. **Information Sharing**
    - Resources and links
@@ -109,7 +111,7 @@ INVALID TOPIC EXAMPLES:
 
 VALID TOPIC EXAMPLES (but not limited to):
 - "Project <ProjectName> Deadline Extension"
-- "Family Reunion Plans"
+- "Family Reunion Plans for <Date>"
 - "Website Launch Date (<Date>)"
 - "Technical Issue with App - <Bug description>"
 - "Vacation Recommendations For <Location>"
@@ -143,7 +145,7 @@ function getThreadGenerationPrompts(content: string, concept: string) {
 RETURN ONLY THE JSON OUTPUT, NOTHING ELSE, IT MUST BE VALID JSON and as accurate as possible.
 OUTPUT STRUCTURE (everything that isn't saying "if available" is REQUIRED and must be written):
 {
-    "title": "Descriptive title of the topic, use Concept instead if provided",
+    "title": "Descriptive title of the topic, use the concept provided as reference",
     "language": "Language code (e.g., 'en' for English)",
 	"additional_context": "Your thoughts on important topics that need to be added to the summary, product/tool descriptions, explanations of acronyms, relevant context to be understandable, etc.",
     "threads": [
@@ -180,7 +182,7 @@ ANALYSIS GUIDELINES:
 - Note any shifts in topics or conversation flow.
 - Differentiate between individual opinions and group consensus.
 - Identify any conflicts or disagreements and their resolutions.
-- ONLY INCLUDE RELEVANT INFORMATION TO THE CONCEPT in the threads. NOTHING ELSE.
+- ONLY INCLUDE DIRECTLY RELEVANT INFORMATION TO THE CONCEPT in the threads. NOTHING ELSE. Don't include any information that is not relevant to the concept.
 
 EXAMPLE OF BAD SUMMARIES (DO NOT WRITE LIKE THIS):
 - "The team discussed various options for the project."
@@ -205,7 +207,8 @@ SUMMARY MUST INCLUDE:
 5. Any relevant context that helps understand the significance
 6. Specific timeframes or deadlines mentioned
 7. Detailed explanation of all the mentioned taglines, acronyms, and abbreviations, tools, websites, places, etc... If you know them.
-8. Any other important context that helps understand the meaning of the discussion.
+8. Try to use participants names or phone numbers when they write something that is meaningful so the concept of the conversation is maintained.
+9. Any other important context that helps understand the meaning of the discussion.
 
 LANGUAGE HANDLING RULES:
 1. Detect the primary language of the conversation
@@ -251,7 +254,10 @@ RESPONSE RULES:
 4. If the topic was only briefly mentioned, note it accordingly.
 5. Do not include any additional text outside the JSON structure.
 
-`
+<IMPORTANT>
+YOU MUST ONLY RETURN THE JSON OUTPUT, NOTHING ELSE.
+YOU MUST ONLY INCLUDE DIRECTLY RELEVANT INFORMATION TO THE CONCEPT in the threads. NOTHING ELSE.
+</IMPORTANT>`
 
 	const userPrompt = `Summarize the discussions related to this concept: "${concept}" from the group chat.
 Focus on capturing important details, decisions, action items, emotional tones, and any unresolved questions.
