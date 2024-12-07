@@ -1,8 +1,8 @@
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import { createSupabaseAdminClient } from '@/lib/utils'
-import { WhatsAppAnalysisPreview } from './WhatsAppAnalysisPreview'
 import type { Metadata } from 'next'
+import { WhatsAppAnalysisPreview } from './WhatsAppAnalysisPreview'
 
 type PageProps = {
 	params: {

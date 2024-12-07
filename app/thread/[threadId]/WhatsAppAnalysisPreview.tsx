@@ -11,7 +11,7 @@ type WhatsAppAnalysisPreviewProps = {
 	concepts: string[]
 	threads: {
 		concept: string
-		discussion: string | ThreadDiscussion
+		discussion: ThreadDiscussion
 	}[]
 	id: string
 }
