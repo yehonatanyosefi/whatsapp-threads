@@ -493,7 +493,7 @@ export async function POST(req: Request): Promise<Response> {
 			const { data, error: saveError } = await supabase
 				.from('threads')
 				.insert({
-					content,
+					content: sanitizedContent,
 					concepts,
 					thread_data: { threads },
 				})
