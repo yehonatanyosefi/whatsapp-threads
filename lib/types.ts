@@ -5,10 +5,10 @@ export interface ThreadResponse {
 export type ThreadDiscussion = {
 	title: string
 	language: string
-	additional_context?: string
 	threads: Array<{
 		timestamp: string
 		participants: string[]
+		additional_context?: string
 		summary: string
 		attachments?: string[]
 		unresolved_questions?: string[]

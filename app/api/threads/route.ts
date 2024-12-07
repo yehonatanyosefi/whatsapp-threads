@@ -147,11 +147,11 @@ OUTPUT STRUCTURE (everything that isn't saying "if available" is REQUIRED and mu
 {
     "title": "Descriptive title of the topic, use the concept provided as reference",
     "language": "Language code (e.g., 'en' for English)",
-	"additional_context": "Your thoughts on important topics that need to be added to the summary, product/tool descriptions, explanations of acronyms, relevant context to be understandable, etc.",
     "threads": [
         {
             "timestamp": "Approximate date/time range",
             "participants": ["Names or identifiers of active participants"],
+            "additional_context": "Your thoughts on important topics that need to be added to the summary, product/tool descriptions, explanations of acronyms, relevant context to be understandable, etc.",
             "summary": "An extremely detailed summary of the discussion",
             "attachments": ["Important links or files shared (if available)"],
             "unresolved_questions": ["Questions that were not answered (if available)"],
@@ -221,11 +221,11 @@ EXAMPLE OUTPUT STRUCTURE IN HEBREW:
 {
     "title": "דיון על שינויים בתקציב החברה",
     "language": "he",
-	"additional_context": "יונתן הוא מנהל פרוייקט בחברת שיווק ורחל מנהלת חשבונות בחברה. דוד הוא מנהל פרוייקט בחברת שיווק.",
     "threads": [
         {
             "timestamp": "2024-03-15",
             "participants": ["יונתן", "רחל", "דוד"],
+            "additional_context": "יונתן הוא מנהל פרוייקט בחברת שיווק ורחל מנהלת חשבונות בחברה. דוד הוא מנהל פרוייקט בחברת שיווק.",
             "summary": "יונתן הציע להגדיל את תקציב השיווק ב-20%. רחל תמכה ברעיון והציגה נתונים מהרבעון האחרון. דוד הסכים והוסיף שיש לבחון מחדש את ההקצאה בעוד שלושה חודשים.",
             "attachments": ["דוח תקציב Q1.pdf"],
             "unresolved_questions": ["כיצד נמדוד את ההשפעה של הגדלת התקציב?"],
