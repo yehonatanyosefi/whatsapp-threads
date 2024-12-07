@@ -484,10 +484,17 @@ function filterLastMonth(content: string): string {
 	return content
 		.split('\n')
 		.filter((line) => {
-			const timestampMatch = line.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
-			if (!timestampMatch) return true // Keep lines without timestamps
-			const messageDate = new Date(timestampMatch[0])
-			return messageDate >= oneMonthAgo
+			// Look for any standardized timestamp in the line
+			const timestampMatches = line.match(
+				/\d{1,2}\/\d{1,2}\/\d{2,4},\s\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?/g
+			)
+			if (!timestampMatches) return true // Keep lines without timestamps
+
+			// Parse the first timestamp found in the line
+			const parsedDate = parseWhatsAppDate(timestampMatches[0])
+			if (!parsedDate) return true // Keep lines with unparseable timestamps
+
+			return parsedDate >= oneMonthAgo
 		})
 		.join('\n')
 }
@@ -503,6 +510,7 @@ export async function POST(req: Request): Promise<Response> {
 			apiKey: null,
 			onlyLastMonth: true,
 		}))
+		console.log(`onlyLastMonth:`, onlyLastMonth)
 
 		if (!apiKey) {
 			return new Response(JSON.stringify({ error: 'Gemini API key is required' }), { status: 400 })
