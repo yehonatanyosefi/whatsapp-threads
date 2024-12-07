@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { ThreadsApiResponse } from '@/lib/types'
 import { cn, getSiteURL, isProduction } from '@/lib/utils'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Check, Edit, FileText, Key, Loader2, RefreshCw } from 'lucide-react'
@@ -15,48 +16,6 @@ import { Concepts } from './Concepts'
 import { Threads } from './Threads'
 
 type UploadStatus = 'idle' | 'uploading' | 'analyzing' | 'done'
-
-export interface ThreadDiscussion {
-	title: string
-	threads: {
-		timestamp: string
-		initiator: {
-			who: string
-			question: string
-			context: string
-		}
-		responses: {
-			who: string
-			contribution: string
-			key_points: string[]
-			attachments?: string
-		}[]
-		resolution: {
-			outcome: string
-			next_steps: string
-			pending?: string
-		}
-	}[]
-	related_topics: string[]
-	action_items: {
-		task: string
-		owner: string
-		deadline?: string
-	}[]
-	note?: string
-}
-
-interface ThreadResponse {
-	concept: string
-	discussion: string | ThreadDiscussion
-}
-
-interface AnalysisResponse {
-	concepts: string[]
-	threads: ThreadResponse[]
-	message: string
-	id: string
-}
 
 interface StepProps {
 	number: number
@@ -86,10 +45,11 @@ export function FileUploader() {
 	const [fileContent, setFileContent] = useState<string>('')
 	const [progress, setProgress] = useState<number>(0)
 	const [apiKey, setApiKey] = useState<string>('')
-	const [analysisResult, setAnalysisResult] = useState<AnalysisResponse | null>(null)
+	const [analysisResult, setAnalysisResult] = useState<ThreadsApiResponse | null>(null)
 	const [isKeyVerified, setIsKeyVerified] = useState<boolean>(false)
 	const [isTestingKey, setIsTestingKey] = useState<boolean>(false)
 	const [uploadStatus, setUploadStatus] = useState<UploadStatus>('idle')
+	const [onlyLastMonth, setOnlyLastMonth] = useState<boolean>(true)
 
 	useEffect(() => {
 		const storedApiKey = localStorage.getItem('geminiApiKey')
@@ -263,14 +223,14 @@ export function FileUploader() {
 				headers: {
 					'Content-Type': 'application/json',
 				},
-				body: JSON.stringify({ content: contentToAnalyze, apiKey }),
+				body: JSON.stringify({ content: contentToAnalyze, apiKey, onlyLastMonth }),
 			})
 
 			if (!response.ok) {
 				throw new Error('Failed to analyze')
 			}
 
-			const data: AnalysisResponse = await response.json()
+			const data: ThreadsApiResponse = await response.json()
 			setAnalysisResult(data)
 			setUploadStatus('done')
 		} catch (error) {
@@ -360,6 +320,18 @@ export function FileUploader() {
 								)}
 							</Button>
 						)}
+					</div>
+					<div className="flex items-center gap-2 mt-2 h-10">
+						<Input
+							type="checkbox"
+							id="lastMonth"
+							checked={onlyLastMonth}
+							onChange={(e) => setOnlyLastMonth(e.target.checked)}
+							className="rounded border-input w-5 h-5"
+						/>
+						<label htmlFor="lastMonth" className="text-muted-foreground">
+							Use only last month of the chat
+						</label>
 					</div>
 				</CardContent>
 			</Card>

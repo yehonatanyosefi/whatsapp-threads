@@ -1,9 +1,9 @@
 'use client'
 import { Concepts } from '@/components/Concepts'
-import { ThreadDiscussion } from '@/components/FileUploader'
 import { Threads } from '@/components/Threads'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
+import { ThreadDiscussion } from '@/lib/types'
 import { getSiteURL } from '@/lib/utils'
 import { useEffect } from 'react'
 

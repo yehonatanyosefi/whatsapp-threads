@@ -1,7 +1,6 @@
 import { FileUploader } from '@/components/FileUploader'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
-import { Card, CardContent } from '@/components/ui/card'
 
 export default function Page() {
 	return (
@@ -15,17 +14,9 @@ export default function Page() {
 					<p className="text-muted-foreground mb-8 text-center">
 						Upload your WhatsApp chat export and generate organized discussion threads using Gemini.
 					</p>
-					<Card className="mb-8 bg-card shadow-lg">
-						<CardContent className="p-6">
-							<h3 className="text-xl font-semibold mb-2 text-foreground">
-								Gemini-Powered Thread Analysis
-							</h3>
-							<p className="text-muted-foreground">
-								Transform your WhatsApp chat exports into organized discussion threads. Identify key
-								topics and follow conversation flows with AI assistance.
-							</p>
-						</CardContent>
-					</Card>
+					<p className="text-muted-foreground mb-8 text-center">
+						By default, the summary will be taken only from the last month of the chat.
+					</p>
 					<FileUploader />
 				</div>
 			</main>
