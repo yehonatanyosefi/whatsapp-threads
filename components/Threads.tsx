@@ -84,6 +84,14 @@ export function Threads({ threads }: ThreadsProps) {
 																		className="text-primary hover:underline">
 																		{attachment}
 																	</a>
+																) : attachment.includes('.') ? (
+																	<a
+																		href={`https://${attachment}`}
+																		target="_blank"
+																		rel="noopener noreferrer"
+																		className="text-primary hover:underline">
+																		{attachment}
+																	</a>
 																) : (
 																	attachment
 																)}
