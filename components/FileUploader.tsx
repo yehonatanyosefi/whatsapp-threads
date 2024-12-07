@@ -330,7 +330,7 @@ export function FileUploader() {
 							className="rounded border-input w-5 h-5"
 						/>
 						<label htmlFor="lastMonth" className="text-muted-foreground">
-							Use only last month of the chat
+							Use only last month of activity
 						</label>
 					</div>
 				</CardContent>

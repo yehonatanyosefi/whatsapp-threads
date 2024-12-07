@@ -1,12 +1,11 @@
 import { ConceptExtractionResult, ThreadResponse, ThreadsApiResponse } from '@/lib/types'
 import { createSupabaseAdminClient, isProduction } from '@/lib/utils'
+import { parseWhatsAppDate, validateContent } from '@/lib/whatsapp'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 // Constants for configuration
 const MAX_RETRIES = 3
 const RETRY_DELAY = 1000 // ms
-const MAX_CONTENT_LENGTH = 100000 // characters
-const MIN_CONTENT_LENGTH = 50
 const MAX_PARALLEL_THREADS = 10
 
 const MODEL_CHEAP = 'gemini-1.5-flash'
@@ -30,107 +29,6 @@ async function withRetry<T>(operation: () => Promise<T>, retryCount = 0): Promis
 
 		throw error
 	}
-}
-
-// Add these helper functions at the top with other constants
-function parseWhatsAppDate(timestamp: string): Date | null {
-	// Remove brackets if present
-	timestamp = timestamp.replace(/[\[\]]/g, '')
-
-	// Different format patterns
-	const patterns = [
-		// 12-hour formats
-		{
-			regex: /(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s(\d{1,2}):(\d{2}):?(\d{2})?\s?(AM|PM)?/,
-			handler: (matches: string[]) => {
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
-				const [_, month, day] = matches
-				const [, , , , , minutes, seconds = '00', period] = matches
-				let [, , , year, hours] = matches
-				// Adjust year if needed
-				year = year.length === 2 ? '20' + year : year
-				// Convert to 24-hour format if needed
-				if (period) {
-					hours = String(
-						period === 'PM'
-							? parseInt(hours) === 12
-								? 12
-								: parseInt(hours) + 12
-							: parseInt(hours) === 12
-							? 0
-							: parseInt(hours)
-					)
-				}
-				return new Date(
-					`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(
-						2,
-						'0'
-					)}:${minutes}:${seconds}`
-				)
-			},
-		},
-		// 24-hour formats
-		{
-			regex: /(\d{1,2})\/(\d{1,2})\/(\d{2,4}),\s(\d{2}):(\d{2})/,
-			handler: (matches: string[]) => {
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
-				const [_, month, day, year, hours, minutes] = matches
-				return new Date(
-					`${year.length === 2 ? '20' + year : year}-${month.padStart(2, '0')}-${day.padStart(
-						2,
-						'0'
-					)}T${hours}:${minutes}:00`
-				)
-			},
-		},
-		// Add more patterns as needed
-	]
-
-	for (const pattern of patterns) {
-		const matches = timestamp.match(pattern.regex)
-		if (matches) {
-			try {
-				return pattern.handler(matches)
-			} catch (e) {
-				console.error('Date parsing error:', e)
-				return null
-			}
-		}
-	}
-	return null
-}
-
-function standardizeTimestamp(timestamp: string): string {
-	const date = parseWhatsAppDate(timestamp)
-	if (!date) return timestamp // Return original if parsing fails
-	return date.toISOString() // Or any other standard format you prefer
-}
-
-// Validate and sanitize content
-function validateContent(content: string): string {
-	if (!content || typeof content !== 'string') {
-		throw new Error('Invalid content format')
-	}
-
-	if (content.length < MIN_CONTENT_LENGTH) {
-		throw new Error('Content too short for meaningful analysis')
-	}
-
-	if (content.length > MAX_CONTENT_LENGTH) {
-		content = content.slice(0, MAX_CONTENT_LENGTH) + '\n[Content truncated due to length...]'
-	}
-
-	// Standardize timestamps instead of removing them
-	return content
-		.replace(/```/g, "'''") // Prevent markdown confusion
-		.replace(
-			/\[?\d{1,2}[\/\.-]\d{1,2}[\/\.-]\d{2,4},\s\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?\]?\s?-?/g,
-			(match) => standardizeTimestamp(match)
-		)
-		.replace(/\u200E/g, '') // Remove LTR mark
-		.replace(/\u200F/g, '') // Remove RTL mark
-		.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '') // Remove emojis
-		.trim()
 }
 
 // Get prompts for concept extraction
@@ -304,7 +202,7 @@ SUMMARY MUST INCLUDE:
 LANGUAGE HANDLING RULES:
 1. Detect the primary language of the conversation
 2. Keep all JSON keys in English (e.g., "title", "summary", "participants")
-3. Write all content values in the detected language
+3. Write all content values in the detected language. IT MUST BE IN THE DETECTED LANGUAGE. If you detect Hebrew, write in Hebrew. If you detect English, write in English. if you detect Russian, write in Russian. including the title's content.
 4. Status values should remain in English: "Pending", "In Progress", "Completed"
 5. Dates and timestamps should use a consistent format regardless of language
 
@@ -476,36 +374,60 @@ async function processConceptBatches(
 	return threads
 }
 
-function keepOnlyLastMonth(content: string): string {
-	const oneMonthAgo = new Date()
-	oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+function keepOnlyLastMonth(content: string, referenceDate?: Date): string {
+	// If no reference date is provided, find the LATEST timestamp in the content
+	if (!referenceDate) {
+		const lines = content.split('\n')
+		let latestDate: Date | null = null
 
-	// Split content into lines and filter
-	const filteredContent = content
-		.split('\n')
-		.filter((line) => {
-			// Look for any standardized timestamp in the line
-			const timestampMatches = line.match(
+		// Scan backwards through the lines to find the last timestamp
+		for (let i = lines.length - 1; i >= 0; i--) {
+			const timestampMatches = lines[i].match(
 				/(?:\d{1,2}\/\d{1,2}\/\d{2,4},\s\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z)/g
 			)
-			if (!timestampMatches) return true // Keep lines without timestamps
 
-			// Parse the first timestamp found in the line
-			const parsedDate = new Date(timestampMatches[0]) // Direct parsing for ISO strings
-			if (isNaN(parsedDate.getTime())) {
-				// If ISO parsing fails, try WhatsApp format
-				const whatsAppDate = parseWhatsAppDate(timestampMatches[0])
-				if (!whatsAppDate) return true // Keep lines with unparseable timestamps
-				return whatsAppDate >= oneMonthAgo
+			if (timestampMatches) {
+				const date = new Date(timestampMatches[0])
+				const parsedDate = isNaN(date.getTime()) ? parseWhatsAppDate(timestampMatches[0]) : date
+
+				if (parsedDate) {
+					latestDate = parsedDate
+					break // Found the last timestamp, no need to continue
+				}
 			}
+		}
 
-			// Keep only messages between one month ago and now
-			return parsedDate >= oneMonthAgo
-		})
-		.join('\n')
-		.trim()
+		referenceDate = latestDate || new Date()
+	}
 
-	return filteredContent || content // Return original content if everything was filtered out
+	const oneMonthBefore = new Date(referenceDate)
+	oneMonthBefore.setMonth(oneMonthBefore.getMonth() - 1)
+
+	const lines = content.split('\n')
+	const keptLines: string[] = []
+	let currentTimestamp: Date | null = null
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i]
+
+		const timestampMatches = line.match(
+			/(?:\d{1,2}\/\d{1,2}\/\d{2,4},\s\d{1,2}:\d{2}(?::\d{2})?\s?(?:AM|PM)?|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z)/g
+		)
+
+		if (timestampMatches) {
+			const date = new Date(timestampMatches[0])
+			currentTimestamp = isNaN(date.getTime()) ? parseWhatsAppDate(timestampMatches[0]) : date
+		}
+
+		const shouldKeepLine = !currentTimestamp || currentTimestamp >= oneMonthBefore
+
+		if (shouldKeepLine) {
+			keptLines.push(line)
+		}
+	}
+
+	const filteredContent = keptLines.join('\n').trim()
+	return filteredContent || content
 }
 
 export async function POST(req: Request): Promise<Response> {
