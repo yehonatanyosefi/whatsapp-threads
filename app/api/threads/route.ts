@@ -42,7 +42,9 @@ STRICT OUTPUT REQUIREMENTS:
 - No additional text or explanations.
 - Each topic must be 2-6 words maximum.
 - Extract 3-15 topics maximum. Try to extract as many as possible.
-- Topics must be in Title Case.
+- Topics must be in Title Case. OR if the language is not English, use the local language title case if available.
+- If the topic is a question, it should be in the form of a question, for example: "What is the deadline for the project?"
+- If the language is not English, use the local language to write the topic.
 
 ANALYSIS GUIDELINES:
 - Recognize topics regardless of language used.
@@ -105,17 +107,20 @@ INVALID TOPIC EXAMPLES:
 - "Just saying hi" (not significant)
 - "Random thoughts" (not specific)
 
-VALID TOPIC EXAMPLES:
-- "Project 'Zersal' Deadline Extension"
+VALID TOPIC EXAMPLES (but not limited to):
+- "Project <ProjectName> Deadline Extension"
 - "Family Reunion Plans"
-- "Website Launch Date (May 15th)"
-- "Technical Issue with App - Can't login"
-- "Vacation Recommendations For Fuji"
-- "Alex Farewell Party Planning"
+- "Website Launch Date (<Date>)"
+- "Technical Issue with App - <Bug description>"
+- "Vacation Recommendations For <Location>"
+- "<Name> Farewell Party Planning"
 - "Emergency Procedures Update"
-- "Made fun of David for his new haircut"
+- "Made fun of <Name> for his new haircut"
 - "Discussed the new product's name"
-- "Josh made a mistake with the pizza order"
+- "<Name> made a mistake with the pizza order"
+
+replace the concept brackets with the actual concept, for example:
+- "Project <ProjectName> Deadline Extension" -> "Project GTM Deadline Extension" (if the concept is GTM)
 `
 
 	const userPrompt = `Extract the key topics from this group chat conversation.
@@ -135,27 +140,27 @@ ${content}
 function getThreadGenerationPrompts(content: string, concept: string) {
 	const systemPrompt = `You are an expert in summarizing group chat conversations into clear, concise, and actionable summaries.
 
-OUTPUT STRUCTURE:
+OUTPUT STRUCTURE (everything that isn't saying "if available" is REQUIRED and must be written):
 {
-    "title": "Descriptive title of the topic",
+    "title": "Descriptive title of the topic, use Concept instead if provided",
     "language": "Language code (e.g., 'en' for English)",
+	"additional_context": "Your thoughts on important topics that need to be added to the summary, product/tool descriptions, explanations of acronyms, relevant context to be understandable, etc.",
     "threads": [
         {
             "timestamp": "Approximate date/time range",
             "participants": ["Names or identifiers of active participants"],
             "summary": "An extremely detailed summary of the discussion",
-            "attachments": ["Important links or files shared"],
-            "unresolved_questions": ["Questions that were not answered"],
-            "notes": "Additional important details"
+            "attachments": ["Important links or files shared (if available)"],
+            "unresolved_questions": ["Questions that were not answered (if available)"],
+            "notes": "Additional important details (if available)"
         }
     ],
-    "related_topics": ["Other topics connected to this discussion"],
     "follow_ups": [
         {
             "task": "Follow-up action required",
-            "assigned_to": "Person responsible",
-            "due_date": "Deadline or time frame",
-            "status": "Pending|In Progress|Completed"
+            "assigned_to": "Person responsible (if available)",
+            "due_date": "Deadline or time frame (if available)",
+            "status": "Pending|In Progress|Completed (if available)"
         }
     ]
 }
@@ -182,7 +187,7 @@ EXAMPLE OF BAD SUMMARIES (DO NOT WRITE LIKE THIS):
 - "Members shared different viewpoints about the proposal."
 - "The group talked about scheduling and made some decisions."
 
-EXAMPLE OF GOOD SUMMARIES (WRITE LIKE THIS):
+EXAMPLES OF GOOD SUMMARIES (WRITE LIKE THIS FORMAT, BE DESCRIPTIVE LIKE THAT):
 - "A critical discussion about team communication tools began on March 15th at 10:15 AM EST when Sarah Chen (Tech Lead, previously at Stripe) presented a detailed analysis of Slack Enterprise. Her presentation highlighted specific integrations: GitHub Enterprise (for PR notifications, code reviews, and deployment alerts), Jira Premium (for ticket tracking and sprint management), and Slack's Custom API capabilities (specifically WebSockets for real-time updates and REST API for automation). Sarah demonstrated how their current code review process, which averages 4.2 hours per review, could be reduced to 1.5 hours by connecting GitHub PR notifications with dedicated Slack channels and implementing custom ChatOps workflows. John Martinez (Backend Lead, ex-Twilio) and Maria Kovac (DevOps Lead, AWS Certified Solutions Architect) strongly supported the proposal, with Maria specifically highlighting Slack's AWS CloudWatch integration features including custom CloudWatch metric alerts, Lambda function logs, and ECS container health monitoring. Pete Davidson (Finance Director) raised concerns about the Slack Enterprise Grid pricing ($8/user/month with annual commitment), presenting a detailed spreadsheet showing a projected annual cost of $15,360 for their 160-person team across 5 departments (Engineering, Product, Sales, Customer Success, and Operations). The team explored alternatives including Discord ($4.99/user/month, lacking SSO) and Microsoft Teams (included in current E3 license at $23/user/month). After comparing 15 key features (documented in Pete's spreadsheet 'Communication-Tools-Comparison-2024.xlsx'), the group determined Slack's developer-focused features would offset the cost through improved productivity, projecting a 20% reduction in communication overhead based on Sarah's previous experience at Stripe. A formal vote was conducted at 11:00 AM, resulting in 7-3 in favor of Slack adoption (documented in meeting-notes.md). Tom Wilson (CTO) approved the budget at 11:30 AM and assigned key responsibilities: Sarah to create implementation plan by Tuesday (March 19th), focusing on data migration from Microsoft Teams (estimated 18 months of historical data, 250GB); Maria to document security requirements including SSO configuration via Okta and DLP policies; John to establish coding guidelines for ChatOps integrations. First department migration (Engineering team of 45 people) scheduled for April 1st, with full company migration to be completed by May 15th."
 - "A comprehensive infrastructure modernization initiative was discussed between March 12th-14th, initiated by Yonatan Levy (Infrastructure Lead, previously Site Reliability Engineer at Wix) who presented a detailed analysis of their current development pipeline issues. The presentation identified three critical bottlenecks: 1) Deployment processes averaging 45 minutes (compared to industry standard of 15-20 minutes) due to sequential testing and manual approvals, 2) Limited visibility across their five remote teams (Singapore GMT+8, Tel Aviv GMT+2, London GMT, New York GMT-5, and Berlin GMT+1), and 3) Inconsistent project tracking across 12 different repositories and 3 project management tools (Jira, Trello, and internal tools). Yonatan proposed Monday.com Enterprise ($16/user/month) as a centralized solution, sharing a 45-slide comparison with alternatives: Jira Premium ($14/user/month), ClickUp Enterprise ($12/user/month), and Asana Business ($19.99/user/month). His proof of concept, developed over two weeks, demonstrated Monday.com's integration capabilities with their existing stack: Jenkins CI/CD pipeline (v2.401.1), Docker registry (self-hosted v20.10.23), and AWS services (including ECS, EKS, and ECR). The custom automation workflow he built showed potential to reduce deployment times to 18 minutes through parallel test execution and automated dependency checks using Monday.com's GraphQL API. Alex Thompson (Project Lead, managing 8 teams across 3 continents) strongly endorsed the proposal after testing the workflows for two days, particularly highlighting the automated sprint planning feature that accommodates multiple time zones and the capacity management dashboard that factors in regional holidays and working hours. Dana Kim (Team Lead, Singapore) expressed concerns about the learning curve for her 12-person team, citing previous challenges with tool transitions. The group agreed to address this through a phased rollout: Phase 1 (Tel Aviv team, 15 people) - March 25th to April 15th; Phase 2 (London & Berlin teams, 28 people) - April 16th to May 7th; Phase 3 (New York & Singapore teams, 32 people) - May 8th to May 30th. The final agreement included a $15/month/user budget ($28,800 annual for 160 users), approved by Finance with quarterly ROI reviews scheduled for Q3 and Q4 2024. Implementation deadlines were set: infrastructure setup by March 20th (Yonatan), training program development by March 22nd (Alex), and documentation in four languages (English, Hebrew, German, and Mandarin) by March 24th (Dana coordinating with regional leads). The transition plan includes 2-hour daily office hours in each regional time zone and a dedicated Slack channel (#monday-migration) for support."
 - "The family's Passover planning discussion began when Mom (Rachel Cohen, host for the past 8 years) shared concerns about Grandma Sarah's mobility issues affecting the traditional seder location. The conversation, spanning from March 10th evening (6:45 PM EST) to March 11th afternoon (3:20 PM EST), involved all 15 family members across three generations. David Cohen (eldest son, homeowner in Newton, MA - 15 minutes from Grandma's assisted living facility) proposed hosting at his newly renovated house, detailing its accessibility features including no stairs, wider doorways (36 inches) for Grandma's walker, and a first-floor bathroom with ADA-compliant fixtures. Sarah Cohen (youngest daughter, traditionally helps with cooking) initially opposed, citing the 8-year tradition of hosting at Mom's house in Brookline, but changed her position after Lisa Cohen (David's wife, interior designer) shared photos of their new dining room setup that could accommodate 22 people comfortably with two tables: a main table (seats 15) and a children's table (seats 7). The group extensively discussed dietary requirements: Jake's (David's son) new gluten sensitivity (diagnosed January 2024), Emily's (Sarah's partner) three vegetarian guests, and keeping strictly kosher for Uncle Joe's family (Orthodox, requires separate meat/dairy dishes). Aunt Mary (professional event planner) volunteered to coordinate the potluck assignments using a shared Google Sheet ('Passover 2024 Menu Planning'), which she created and shared by 8 PM. The final arrangement included David hosting (address: 123 Oak Street, Newton), Mom bringing her traditional brisket (recipe from Grandma Rose, circa 1955) with Lisa learning the recipe as backup, and specific arrival times set for 4 PM to help Grandma settle in before the traditional start time of 5:30 PM. A separate kids' table was planned for the seven children under 12 (ages 4-11), with Hannah (15, Red Cross babysitting certified) assigned to supervise. The family agreed to split the costs of hiring a professional cleaner for post-seder cleanup ($180, recommended by Lisa's synagogue), and Michael (Sarah's husband, works near Grandma) offered to coordinate Uber Health arrangements for Grandma (estimated $45 round trip, covered by David). Rabbi Goldstein (family's rabbi for 20 years) will attend from 5:30-7:30 PM to lead the traditional elements of the seder."
@@ -198,6 +203,7 @@ SUMMARY MUST INCLUDE:
 5. Any relevant context that helps understand the significance
 6. Specific timeframes or deadlines mentioned
 7. Detailed explanation of all the mentioned taglines, acronyms, and abbreviations, tools, places
+8. 
 
 LANGUAGE HANDLING RULES:
 1. Detect the primary language of the conversation
@@ -206,7 +212,7 @@ LANGUAGE HANDLING RULES:
 4. Status values should remain in English: "Pending", "In Progress", "Completed"
 5. Dates and timestamps should use a consistent format regardless of language
 
-EXAMPLE OUTPUT IN HEBREW:
+EXAMPLE OUTPUT STRUCTURE IN HEBREW:
 {
     "title": "דיון על שינויים בתקציב החברה",
     "language": "he",
@@ -245,7 +251,7 @@ RESPONSE RULES:
 
 `
 
-	const userPrompt = `Summarize the discussions related to "${concept}" from the group chat.
+	const userPrompt = `Summarize the discussions related to this concept: "${concept}" from the group chat.
 Focus on capturing important details, decisions, action items, emotional tones, and any unresolved questions.
 Ensure the summary is useful for participants who may have missed the conversation.
 

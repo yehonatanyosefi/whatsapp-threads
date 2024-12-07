@@ -38,8 +38,6 @@ export function Threads({ threads }: ThreadsProps) {
 				<div
 					key={index}
 					className="mb-8 border-b border-border pb-6 last:border-0 max-w-[800px] mx-auto">
-					<h3 className="text-lg font-semibold mb-4">{thread.concept}</h3>
-
 					{isThreadDiscussion(thread.discussion) && (
 						<>
 							<div
@@ -133,8 +131,10 @@ export function Threads({ threads }: ThreadsProps) {
 											<ul className="list-disc list-inside text-sm">
 												{thread.discussion.follow_ups.map((item, idx) => (
 													<li key={idx}>
-														{item.task} - Assigned to: {item.assigned_to}
-														{item.due_date && ` (Due: ${item.due_date})`} - Status: {item.status}
+														{item.task}
+														{item.assigned_to && ` - Assigned to: ${item.assigned_to}`}
+														{item.due_date && ` - Due: ${item.due_date}`}
+														{item.status && ` - Status: ${item.status}`}
 													</li>
 												))}
 											</ul>
