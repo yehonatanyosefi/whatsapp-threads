@@ -1,3 +1,4 @@
+import { MODEL_SMART } from '@/lib/ai'
 import { ConceptExtractionResult, ThreadResponse, ThreadsApiResponse } from '@/lib/types'
 import { createSupabaseAdminClient, isProduction } from '@/lib/utils'
 import { parseWhatsAppDate, validateContent } from '@/lib/whatsapp'
@@ -7,8 +8,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 const MAX_RETRIES = 3
 const RETRY_DELAY = 1000 // ms
 const MAX_PARALLEL_THREADS = 10
-
-const MODEL_CHEAP = 'gemini-1.5-flash'
 
 // Utility function for delay between retries
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -276,7 +275,7 @@ async function extractConcepts(apiKey: string, content: string): Promise<Concept
 	try {
 		const { systemPrompt, userPrompt } = getConceptExtractionPrompts(content)
 		const genAI = new GoogleGenerativeAI(apiKey)
-		const model = genAI.getGenerativeModel({ model: MODEL_CHEAP, systemInstruction: systemPrompt })
+		const model = genAI.getGenerativeModel({ model: MODEL_SMART, systemInstruction: systemPrompt })
 
 		const conceptsResult = await withRetry(async () => {
 			const result = await model.generateContent(userPrompt)
@@ -329,7 +328,7 @@ async function generateThreadSummary(
 	try {
 		const { systemPrompt, userPrompt } = getThreadGenerationPrompts(content, concept)
 		const genAI = new GoogleGenerativeAI(apiKey)
-		const model = genAI.getGenerativeModel({ model: MODEL_CHEAP, systemInstruction: systemPrompt })
+		const model = genAI.getGenerativeModel({ model: MODEL_SMART, systemInstruction: systemPrompt })
 
 		const threadResult = await withRetry(async () => {
 			const result = await model.generateContent(userPrompt)

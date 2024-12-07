@@ -1,3 +1,4 @@
+import { MODEL_CHEAP } from '@/lib/ai'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export async function POST(req: Request) {
@@ -9,11 +10,12 @@ export async function POST(req: Request) {
 		}
 
 		const genAI = new GoogleGenerativeAI(apiKey)
-		const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+		const model = genAI.getGenerativeModel({ model: MODEL_CHEAP })
 
 		// Test the API key with a simple prompt
 		const result = await model.generateContent('Hello, World!')
 		const response = result.response
+		console.log(`response:`, response)
 
 		if (response) {
 			return new Response(JSON.stringify({ success: true }), { status: 200 })
