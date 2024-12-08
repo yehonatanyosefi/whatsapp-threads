@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ThreadsApiResponse } from '@/lib/types'
 import { cn, getSiteURL, isProduction } from '@/lib/utils'
-import { PROCESSING_TIME } from '@/lib/whatsapp'
 import { AnimatePresence, motion } from 'framer-motion'
 import { AlertTriangle, Check, Edit, FileText, Key, Loader2, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
@@ -216,7 +215,7 @@ export function FileUploader() {
 			progress += 1
 			setProgress(Math.min(progress, 100))
 			if (progress >= 100) clearInterval(interval)
-		}, PROCESSING_TIME / 950)
+		}, 4500)
 
 		try {
 			const response = await fetch('/api/threads', {
