@@ -1,5 +1,4 @@
 'use client'
-import { Concepts } from '@/components/Concepts'
 import { Threads } from '@/components/Threads'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useCopyToClipboard } from '@/hooks/useCopyToClipboard'
@@ -24,7 +23,7 @@ export function WhatsAppAnalysisPreview({ concepts, threads, id }: WhatsAppAnaly
 		if (copied) {
 			const timer = setTimeout(() => {
 				handleResetCopied() // Reset copied state
-			}, 500)
+			}, 1000)
 			return () => clearTimeout(timer)
 		}
 	}, [copied, handleResetCopied])
@@ -44,7 +43,7 @@ export function WhatsAppAnalysisPreview({ concepts, threads, id }: WhatsAppAnaly
 					<PopoverContent className="w-auto p-2">Copied!</PopoverContent>
 				</Popover>
 			</h1>
-			<Concepts concepts={concepts} />
+			{/* <Concepts concepts={concepts} /> */}
 			<Threads threads={threads} />
 		</div>
 	)
