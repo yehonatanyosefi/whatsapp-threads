@@ -13,7 +13,7 @@ export function BuyMeACoffee() {
 			<PopoverTrigger asChild>
 				<div onMouseEnter={() => setIsOpen(true)} onMouseLeave={() => setIsOpen(false)}>
 					<Link
-						href="https://buymeacoffee.com/yehonatanm5"
+						href="https://buymeacoffee.com/yonatanlavy"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="flex items-center space-x-2 bg-[#FFDD00] text-black px-4 py-2 rounded-full 
