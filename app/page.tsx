@@ -15,7 +15,8 @@ export default function Page() {
 						Upload your WhatsApp chat export and generate organized discussion threads using Gemini.
 					</p>
 					<p className="text-muted-foreground mb-8 text-center">
-						By default, the summary will be taken only from the last month of the chat.
+						By default, the summary will be taken only from the last month of the chat. And only up to
+						800,000 characters will be used.
 					</p>
 					<FileUploader />
 				</div>
