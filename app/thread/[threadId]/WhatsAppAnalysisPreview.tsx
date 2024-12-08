@@ -15,7 +15,7 @@ type WhatsAppAnalysisPreviewProps = {
 	id: string
 }
 
-export function WhatsAppAnalysisPreview({ concepts, threads, id }: WhatsAppAnalysisPreviewProps) {
+export function WhatsAppAnalysisPreview({ threads, id }: WhatsAppAnalysisPreviewProps) {
 	const { copy, copied, handleResetCopied } = useCopyToClipboard()
 
 	// Add effect to auto-close popover
