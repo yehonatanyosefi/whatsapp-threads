@@ -113,7 +113,7 @@ export function Threads({ threads }: ThreadsProps) {
 													</div>
 												)}
 
-											{discussionThread.notes && discussionThread.notes.trim() && (
+											{discussionThread.notes && discussionThread.notes.length > 0 && (
 												<div
 													className="ml-4 mb-2 text-sm text-muted-foreground"
 													dir={isThreadInRTLLanguage(thread.discussion) ? 'rtl' : 'ltr'}>
