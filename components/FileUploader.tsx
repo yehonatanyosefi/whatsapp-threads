@@ -212,12 +212,11 @@ export function FileUploader() {
 
 		setUploadStatus('analyzing')
 		let progress = 0
-		const PROGRESS_CHUNKS = 10
 		const interval = setInterval(() => {
-			progress += PROGRESS_CHUNKS / 10
+			progress += 1
 			setProgress(Math.min(progress, 100))
 			if (progress >= 100) clearInterval(interval)
-		}, (PROCESSING_TIME / PROGRESS_CHUNKS) * 0.8)
+		}, PROCESSING_TIME / 950)
 
 		try {
 			const response = await fetch('/api/threads', {
