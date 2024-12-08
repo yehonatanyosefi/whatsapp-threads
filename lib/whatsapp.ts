@@ -1,5 +1,6 @@
-const MAX_CONTENT_LENGTH = 800 * 1000 // characters
-const MIN_CONTENT_LENGTH = 50
+export const MAX_CONTENT_LENGTH = 400 * 1000 // characters
+export const MIN_CONTENT_LENGTH = 50
+export const PROCESSING_TIME = 5 * 60 * 1000 // 5 minutes
 // Add these helper functions at the top with other constants
 export function parseWhatsAppDate(timestamp: string): Date | null {
 	// Remove brackets if present

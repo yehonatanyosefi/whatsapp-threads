@@ -448,7 +448,7 @@ export async function POST(req: Request): Promise<Response> {
 		if (req.method !== 'POST') {
 			return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405 })
 		}
-
+		const startTime = Date.now()
 		const { content, apiKey, onlyLastMonth } = await req.json().catch(() => ({
 			content: null,
 			apiKey: null,
@@ -511,6 +511,9 @@ export async function POST(req: Request): Promise<Response> {
 			savedThread = data
 			console.log('Saved to Supabase with ID:', savedThread.id, 'Share ID:', savedThread.share_id)
 		}
+		const endTime = Date.now()
+		const duration = endTime - startTime
+		console.log('Time taken:', duration, 'ms')
 
 		const response: ThreadsApiResponse = {
 			concepts,
