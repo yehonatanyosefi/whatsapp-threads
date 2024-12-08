@@ -471,6 +471,7 @@ export async function POST(req: Request): Promise<Response> {
 		if (onlyLastMonth) {
 			sanitizedContent = keepOnlyLastMonth(sanitizedContent)
 		}
+		return new Response(JSON.stringify({ sanitizedContent }), { status: 200 })
 
 		// Extract concepts
 		const { concepts, error: conceptsError } = await extractConcepts(apiKey, sanitizedContent)

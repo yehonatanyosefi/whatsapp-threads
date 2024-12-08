@@ -1,4 +1,4 @@
-const MAX_CONTENT_LENGTH = 150 * 1000 // characters
+const MAX_CONTENT_LENGTH = 800 * 1000 // characters
 const MIN_CONTENT_LENGTH = 50
 // Add these helper functions at the top with other constants
 export function parseWhatsAppDate(timestamp: string): Date | null {
@@ -15,8 +15,10 @@ export function parseWhatsAppDate(timestamp: string): Date | null {
 				const [_, month, day] = matches
 				const [, , , , , minutes, seconds = '00', period] = matches
 				let [, , , year, hours] = matches
+
 				// Adjust year if needed
 				year = year.length === 2 ? '20' + year : year
+
 				// Convert to 24-hour format if needed
 				if (period) {
 					hours = String(
@@ -29,12 +31,16 @@ export function parseWhatsAppDate(timestamp: string): Date | null {
 							: parseInt(hours)
 					)
 				}
-				return new Date(
-					`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(
-						2,
-						'0'
-					)}:${minutes}:${seconds}`
-				)
+
+				// Create date string
+				const dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(
+					2,
+					'0'
+				)}:${minutes}:${seconds}`
+
+				// Validate the date
+				const date = new Date(dateStr)
+				return isNaN(date.getTime()) ? null : date
 			},
 		},
 		// 24-hour formats
@@ -43,12 +49,16 @@ export function parseWhatsAppDate(timestamp: string): Date | null {
 			handler: (matches: string[]) => {
 				// eslint-disable-next-line @typescript-eslint/no-unused-vars
 				const [_, month, day, year, hours, minutes] = matches
-				return new Date(
-					`${year.length === 2 ? '20' + year : year}-${month.padStart(2, '0')}-${day.padStart(
-						2,
-						'0'
-					)}T${hours}:${minutes}:00`
-				)
+
+				// Create date string
+				const dateStr = `${year.length === 2 ? '20' + year : year}-${month.padStart(
+					2,
+					'0'
+				)}-${day.padStart(2, '0')}T${hours}:${minutes}:00`
+
+				// Validate the date
+				const date = new Date(dateStr)
+				return isNaN(date.getTime()) ? null : date
 			},
 		},
 		// Add more patterns as needed
